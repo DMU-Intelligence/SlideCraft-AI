@@ -12,6 +12,7 @@ from .routers.health import router as health_router
 from .routers.ingest import router as ingest_router
 from .routers.generate import router as generate_router
 from .routers.regenerate import router as regenerate_router
+from .routers.export import router as export_router
 from .services.chunking import ChunkingService
 from .services.document_parser import DocumentParser
 from .services.llm_client import create_llm_client
@@ -67,4 +68,5 @@ app.include_router(health_router)
 app.include_router(ingest_router)
 app.include_router(generate_router)
 app.include_router(regenerate_router)
+app.include_router(export_router)
 

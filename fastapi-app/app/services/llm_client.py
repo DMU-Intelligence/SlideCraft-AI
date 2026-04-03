@@ -42,6 +42,10 @@ def _safe_get_text(value: Any) -> str:
     return str(value)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Mock client (개발·테스트용)
+# ──────────────────────────────────────────────────────────────────────────────
+
 class MockLLMClient(LLMClient):
     async def generate_json(self, prompt: str, response_schema: dict[str, Any]) -> dict[str, Any]:
         task, data = _extract_task_and_data(prompt)
@@ -84,7 +88,6 @@ class MockLLMClient(LLMClient):
                 }
             )
 
-        # Ensure deterministic size: keep slide outline aligned with chunk-derived limit if provided.
         if isinstance(data.get("slide_count_hint"), int):
             hint = int(data["slide_count_hint"])
             slide_outline = slide_outline[: max(1, hint)]
@@ -118,7 +121,6 @@ class MockLLMClient(LLMClient):
                 break
 
         if len(picked) < max_bullets:
-            # Deterministic fallback: take earliest sentences.
             for s in sentences:
                 cleaned = re.sub(r"\s+", " ", s).strip()
                 if cleaned and cleaned not in picked:
@@ -126,43 +128,27 @@ class MockLLMClient(LLMClient):
                 if len(picked) >= max_bullets:
                     break
 
-        return [p[:160] for p in picked[:max_bullets]]
+        return picked[:max_bullets]
 
     def _generate_slide(self, data: dict[str, Any]) -> dict[str, Any]:
-        slide_number = int(data["slide_number"])
-        outline_item = data.get("outline_item") or {}
+        slide_number = int(data.get("slide_number") or 1)
         slide_id = _safe_get_text(data.get("slide_id")) or f"slide_{slide_number:02d}"
+        outline_item = data.get("outline_item") or {}
         title = _safe_get_text(outline_item.get("title")) or f"Slide {slide_number}"
         goal = _safe_get_text(outline_item.get("goal")) or ""
 
         chunks = data.get("chunks") or []
-        if not isinstance(chunks, list):
-            chunks = []
-
-        keywords = extract_top_keywords(f"{title} {goal}", top_n=8)
-        prev_title = _safe_get_text(data.get("prev_title"))
-        next_title = _safe_get_text(data.get("next_title"))
-        if prev_title:
-            keywords += extract_top_keywords(prev_title, top_n=3)
-        if next_title:
-            keywords += extract_top_keywords(next_title, top_n=3)
-        # Deduplicate deterministically while preserving order.
-        seen: set[str] = set()
-        keywords = [k for k in keywords if not (k in seen or seen.add(k))]  # type: ignore
-        keywords = keywords[:8]
+        keywords = extract_top_keywords(f"{title} {goal}", top_n=8) or tokenize_words(title)[:5]
 
         scored: list[tuple[int, dict[str, Any]]] = []
         for c in chunks:
-            cid = _safe_get_text(c.get("chunk_id"))
-            c_text = _safe_get_text(c.get("text"))[:6000]
-            score = self._score_chunk(c_text, keywords)
-            scored.append((score, {"chunk_id": cid, "text": c_text}))
-        scored.sort(key=lambda x: (-x[0], x[1]["chunk_id"]))
-        top = [s for s in scored[:3] if s[0] > 0] or scored[:2]
+            text = _safe_get_text(c.get("text"))
+            score = self._score_chunk(text, keywords)
+            scored.append((score, c))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:3]
+        source_chunk_ids = [_safe_get_text(c.get("chunk_id")) for _, c in top if c.get("chunk_id")]
 
-        source_chunk_ids = [t[1]["chunk_id"] for t in top[:2] if t[1]["chunk_id"]]
-
-        # Build bullets from the highest scoring chunk(s).
         bullets: list[str] = []
         for _, c in top[:2]:
             bullets = self._extract_bullets(c["text"], keywords, max_bullets=4)
@@ -208,12 +194,10 @@ class MockLLMClient(LLMClient):
         return {"slide_id": slide_id, "notes": notes}
 
     def _regenerate_slide(self, data: dict[str, Any]) -> dict[str, Any]:
-        # Regeneration uses current slide + neighbor titles to bias bullets.
         data = dict(data)
         slide_number = int(data["slide_number"])
         outline_item = data.get("outline_item") or {}
         data["outline_item"] = outline_item
-        # Add neighbor content bias via prompt data.
         prev_title = _safe_get_text(data.get("prev_title"))
         next_title = _safe_get_text(data.get("next_title"))
         data["prev_title"] = prev_title
@@ -224,6 +208,10 @@ class MockLLMClient(LLMClient):
         slide = data["slide"]
         return self._generate_notes({"slide": slide})
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# OpenAI 호환 클라이언트 (GPT-4o 등)
+# ──────────────────────────────────────────────────────────────────────────────
 
 class OpenAICompatibleLLMClient(LLMClient):
     def __init__(self, settings: Settings) -> None:
@@ -239,7 +227,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         payload: dict[str, Any] = {
             "model": self._settings.openai_model,
             "messages": [
-                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "system", "content": "Return only valid JSON. Do not include markdown code blocks or any text outside the JSON object."},
                 {"role": "user", "content": prompt},
             ],
             "temperature": 0.2,
@@ -255,18 +243,100 @@ class OpenAICompatibleLLMClient(LLMClient):
             .get("message", {})
             .get("content", "")
         )
-        content = _safe_get_text(content).strip()
-        # Best-effort JSON extraction.
-        start = content.find("{")
-        end = content.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            raise RuntimeError("Model did not return JSON content.")
-        raw_json = content[start : end + 1]
-        return json.loads(raw_json)
+        return _parse_json_from_text(_safe_get_text(content))
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Gemini 클라이언트
+# ──────────────────────────────────────────────────────────────────────────────
+
+class GeminiLLMClient(LLMClient):
+    """Google Gemini API 클라이언트 (google-generativeai 패키지 사용)"""
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._client: Any = None
+
+    def _get_client(self) -> Any:
+        """지연 초기화 — import는 한 번만"""
+        if self._client is None:
+            try:
+                import google.generativeai as genai  # type: ignore[import]
+            except ImportError as e:
+                raise RuntimeError(
+                    "google-generativeai 패키지가 설치되지 않았습니다. "
+                    "pip install google-generativeai 를 실행하세요."
+                ) from e
+
+            if not self._settings.gemini_api_key:
+                raise RuntimeError("GEMINI_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
+
+            genai.configure(api_key=self._settings.gemini_api_key)
+            self._client = genai.GenerativeModel(
+                model_name=self._settings.gemini_model,
+                generation_config={
+                    "temperature": 0.2,
+                    "response_mime_type": "application/json",  # JSON 모드 강제
+                },
+            )
+        return self._client
+
+    async def generate_json(self, prompt: str, response_schema: dict[str, Any]) -> dict[str, Any]:
+        import asyncio
+
+        model = self._get_client()
+        system_instruction = (
+            "You are a presentation assistant. "
+            "Always respond with a single valid JSON object only. "
+            "Do not include any markdown, code blocks, or explanatory text."
+        )
+        full_prompt = f"{system_instruction}\n\n{prompt}"
+
+        # google-generativeai의 동기 API를 비동기로 래핑
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None, lambda: model.generate_content(full_prompt)
+        )
+
+        raw_text = response.text.strip()
+        return _parse_json_from_text(raw_text)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 공통 JSON 파싱 헬퍼
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _parse_json_from_text(text: str) -> dict[str, Any]:
+    """LLM 응답 텍스트에서 JSON 객체를 추출합니다."""
+    # 마크다운 코드블록 제거
+    text = re.sub(r"```(?:json)?", "", text).strip()
+    text = text.replace("```", "").strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise RuntimeError(f"LLM이 유효한 JSON을 반환하지 않았습니다. 응답: {text[:200]}")
+
+    raw_json = text[start : end + 1]
+    return json.loads(raw_json)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 팩토리 함수
+# ──────────────────────────────────────────────────────────────────────────────
 
 def create_llm_client(settings: Settings) -> LLMClient:
-    if settings.llm_mode == "mock":
-        return MockLLMClient()
-    return OpenAICompatibleLLMClient(settings)
+    """LLM_MODE 환경 변수에 따라 적절한 클라이언트를 반환합니다."""
+    mode = settings.llm_mode
 
+    if mode == "gemini":
+        return GeminiLLMClient(settings)
+    if mode == "openai":
+        return OpenAICompatibleLLMClient(settings)
+    if mode == "mock":
+        return MockLLMClient()
+
+    raise ValueError(
+        f"알 수 없는 LLM_MODE: '{mode}'. "
+        "지원 값: 'mock', 'openai', 'gemini'"
+    )
