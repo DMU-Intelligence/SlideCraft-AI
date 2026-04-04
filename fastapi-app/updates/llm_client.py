@@ -145,9 +145,9 @@ items 배열에 3~5개 항목.
 {{"type":"bullet_list","left":0.5,"top":1.75,"width":12.33,"height":5.2,"items":["항목1","항목2"],"bullet_char":"▸","bullet_color":"#5B8DEF","font_name":"Malgun Gothic","font_size":16,"font_color":"#D4D8E8"}}
 
 ## 디자인 가이드라인
-1. 배경은 밝은 색상 (예: #FFFFFF, #F8FAFC 등 밝고 다양한 파스텔 톤)을 슬라이드마다 내용에 맞게 변화를 주어 사용하세요.
-2. 제목은 크고 굵게 (24~36pt, bold, 검정 또는 짙은 색 계열).
-3. 본문은 읽기 쉬운 크기 (14~18pt, 짙은 회색 계열).
+1. 배경은 어두운 색 (#0F172A ~ #1A2744 범위)을 사용하세요.
+2. 제목은 크고 굵게 (24~36pt, bold, 흰색 계열).
+3. 본문은 읽기 쉬운 크기 (14~18pt, 밝은 회색 계열).
 4. 상단에 accent 바(얇은 사각형)를 넣어 세련된 느낌을 주세요.
 5. 제목과 본문 사이에 구분선(얇은 사각형)을 넣으세요.
 6. elements는 겹치지 않게 배치하세요.
@@ -220,8 +220,8 @@ _REGENERATE_SLIDE_PROMPT = """\
 (generate_slide 와 동일한 element 규격 적용)
 
 ## 디자인 가이드라인
-- 배경 밝은 색상 (예: #FFFFFF, #F8FAFC 등 밝은 파스텔 톤)을 내용에 맞게 다양하게 사용
-- 제목 굵고 짙은 색, 본문 짙은 회색
+- 배경 어두운 색 (#0F172A ~ #1A2744)
+- 제목 굵고 흰색, 본문 밝은 회색
 - 상단 accent 바 + 구분선 포함
 
 ## 참고 문서 내용
@@ -337,15 +337,11 @@ class MockLLMClient(LLMClient):
 # OpenAI 호환 클라이언트
 # ══════════════════════════════════════════════════════════════════════════════
 
-import logging
-logger = logging.getLogger(__name__)
-
 class OpenAICompatibleLLMClient(LLMClient):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
     async def _call(self, prompt: str) -> str:
-        logger.info(f"========== [OpenAI] Sending prompt to AI ==========\n{prompt}\n===================================================")
         if not self._settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not set.")
         url = self._settings.openai_base_url.rstrip("/") + "/v1/chat/completions"
@@ -467,7 +463,6 @@ class GeminiLLMClient(LLMClient):
         return self._model
 
     async def _call(self, prompt: str) -> str:
-        logger.info(f"========== [Gemini] Sending prompt to AI ==========\n{prompt}\n===================================================")
         import asyncio
         model = self._get_model()
         loop = asyncio.get_event_loop()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 
 from ..schemas.generate import (
     GenerateAllRequest,
@@ -29,7 +30,7 @@ async def generate_outline(req: GenerateOutlineRequest, request: Request) -> Gen
     state.outline = outline
     state.touch()
     await repo.upsert(state)
-    return GenerateOutlineResponse(project_id=state.project_id, outline=outline, summary=state.summary)
+    return GenerateOutlineResponse(project_id=state.project_id, outline=outline)
 
 
 @router.post("/generate/slides", response_model=GenerateSlidesResponse)
@@ -40,7 +41,7 @@ async def generate_slides(req: GenerateSlidesRequest, request: Request) -> Gener
     state: ProjectState | None = await repo.get(req.project_id)
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
-    slides = await slide_generator.generate_slides(state, max_slides=req.max_slides)
+    slides = await slide_generator.generate_slides(state)
     state.slides = slides
     # Regenerate notes are independent; keep existing notes as-is.
     state.touch()
@@ -63,6 +64,17 @@ async def generate_notes(req: GenerateNotesRequest, request: Request) -> Generat
     return GenerateNotesResponse(project_id=state.project_id, notes=notes)
 
 
+@router.get("/notes/{project_id}")
+async def get_notes(project_id: int, request: Request) -> PlainTextResponse:
+    repo = request.app.state.project_repository
+    state: ProjectState | None = await repo.get(project_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    if not state.notes:
+        raise HTTPException(status_code=404, detail="notes not found")
+    return PlainTextResponse(content=state.notes)
+
+
 @router.post("/generate/all", response_model=GenerateAllResponse)
 async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAllResponse:
     repo = request.app.state.project_repository
@@ -77,7 +89,7 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
     outline = await outline_generator.generate_outline(state)
     state.outline = outline
 
-    slides = await slide_generator.generate_slides(state, max_slides=req.max_slides)
+    slides = await slide_generator.generate_slides(state)
     state.slides = slides
 
     notes = await notes_generator.generate_notes(state)
@@ -90,7 +102,5 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
         outline=outline,
         slides=slides,
         notes=notes,
-        summary=state.summary,
         stats={},
     )
-

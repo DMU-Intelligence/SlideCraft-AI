@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import uuid
 from pathlib import Path
 from typing import Any, Optional
 
@@ -19,37 +18,33 @@ router = APIRouter(tags=["ingest"])
 async def ingest_document(
     file: UploadFile,
     request: Request,
-    project_id: Optional[str] = Form(default=None),
+    project_id: Optional[int] = Form(default=None),
     title: Optional[str] = Form(default=None),
     language: str = Form(default="ko"),
-    tone: str = Form(default="professional"),
-    max_chunk_chars: int = Form(default=1200),
-    chunk_overlap: int = Form(default=150),
 ) -> IngestDocumentResponse:
     """
-    파일을 업로드하고 텍스트 추출 → 청킹 → 요약을 수행합니다.
+    파일을 업로드하고 텍스트 추출 → AI 텍스트 정리를 수행합니다.
 
     Form fields:
         file             : 업로드할 파일 (PDF 또는 텍스트)
         project_id       : 프로젝트 ID (미입력 시 자동 생성)
         title            : 프레젠테이션 제목 (미입력 시 파일명 사용)
         language         : 언어 코드 (기본값: "ko")
-        tone             : 말투 스타일 (기본값: "professional")
-        max_chunk_chars  : 청크 최대 글자 수 (기본값: 1200)
-        chunk_overlap    : 청크 간 중복 글자 수 (기본값: 150)
     """
     state_repo = request.app.state.project_repository
     document_parser = request.app.state.document_parser
-    chunking_service = request.app.state.chunking_service
-    summarizer = request.app.state.summarizer
+    llm_client = request.app.state.llm_client
     settings = request.app.state.settings
 
     # ── 파일 저장 ────────────────────────────────────────────────────────────
     original_filename = file.filename or "upload"
     safe_filename = sanitize_filename(original_filename)
 
-    resolved_project_id = project_id or uuid.uuid4().hex
-    dest_dir = Path(settings.upload_dir) / resolved_project_id
+    resolved_project_id = project_id
+    if resolved_project_id is None:
+        resolved_project_id = await state_repo.next_id()
+
+    dest_dir = Path(settings.upload_dir) / str(resolved_project_id)
     os.makedirs(dest_dir, exist_ok=True)
     dest_path = dest_dir / safe_filename
 
@@ -58,32 +53,24 @@ async def ingest_document(
     # ── 제목 결정 ────────────────────────────────────────────────────────────
     resolved_title = title or os.path.splitext(safe_filename)[0] or "Untitled"
 
-    # ── 문서 파싱 → 청킹 → 요약 ─────────────────────────────────────────────
+    # ── 문서 파싱 → AI 텍스트 정리 ─────────────────────────────────────────────
     try:
         parsed_doc = await document_parser.parse_document(str(dest_path))
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    chunks = await chunking_service.chunk_text(
-        parsed_doc.text,
-        max_chunk_chars=max_chunk_chars,
-        chunk_overlap=chunk_overlap,
-    )
-    summary_result = await summarizer.summarize(chunks)
+    cleaned_text = await llm_client.clean_text(parsed_doc.text, language)
 
     # ── ProjectState 생성 & 저장 ─────────────────────────────────────────────
     state = ProjectState(
         project_id=resolved_project_id,
         title=resolved_title,
         language=language,
-        tone=tone,
         source_document_text=parsed_doc.text,
-        chunks=chunks,
-        summary=summary_result["summary"],
-        outline=None,
+        content=cleaned_text,
+        outline={},
         slides=[],
-        notes=[],
-        user_edited_slide_ids=[],
+        notes="",
         metadata={
             "source_filename": original_filename,
             "source_document_metadata": parsed_doc.metadata,
@@ -96,18 +83,18 @@ async def ingest_document(
         source_filename=original_filename,
         file_type=parsed_doc.metadata.get("file_type"),
         parser_version="mvp-1",
-        extra={"chunk_count": len(chunks)},
+        extra={},
     )
     stats: dict[str, Any] = {
         "char_count": len(parsed_doc.text),
-        "chunk_count": len(chunks),
+        "clean_char_count": len(cleaned_text),
     }
 
     return IngestDocumentResponse(
         project_id=state.project_id,
-        raw_text=parsed_doc.text,
-        chunks=chunks,
-        summary=state.summary,
+        title=state.title,
+        language=state.language,
+        content=state.content,
         metadata=metadata,
         stats=stats,
     )

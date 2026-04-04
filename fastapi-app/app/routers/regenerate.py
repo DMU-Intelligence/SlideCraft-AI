@@ -8,6 +8,8 @@ from ..schemas.regenerate import (
     RegenerateNotesResponse,
     RegenerateSlideRequest,
     RegenerateSlideResponse,
+    UpdateOutlineRequest,
+    UpdateOutlineResponse,
 )
 
 router = APIRouter(tags=["regenerate"])
@@ -22,13 +24,9 @@ async def regenerate_slide(req: RegenerateSlideRequest, request: Request) -> Reg
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
 
-    if req.user_edited_slide_ids:
-        existing = set(state.user_edited_slide_ids)
-        for sid in req.user_edited_slide_ids:
-            existing.add(sid)
-        state.user_edited_slide_ids = sorted(existing)
-
-    slide = await regeneration_service.regenerate_slide(state, slide_id=req.slide_id, force=req.force)
+    slide = await regeneration_service.regenerate_slide(
+        state, slide_title=req.slide_title, user_request=req.user_request
+    )
     state.touch()
     await repo.upsert(state)
     return RegenerateSlideResponse(project_id=state.project_id, slide=slide)
@@ -43,14 +41,22 @@ async def regenerate_notes(req: RegenerateNotesRequest, request: Request) -> Reg
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
 
-    slide_ids = list(req.slide_ids) if req.slide_ids else []
-    if req.slide_id and req.slide_id not in slide_ids:
-        slide_ids.append(req.slide_id)
-    if not slide_ids:
-        slide_ids = None
-
-    notes = await regeneration_service.regenerate_notes(state, slide_ids=slide_ids)
+    notes = await regeneration_service.regenerate_notes(state)
     state.touch()
     await repo.upsert(state)
     return RegenerateNotesResponse(project_id=state.project_id, notes=notes)
 
+
+@router.post("/regenerate/outline", response_model=UpdateOutlineResponse)
+async def update_outline(req: UpdateOutlineRequest, request: Request) -> UpdateOutlineResponse:
+    repo = request.app.state.project_repository
+    regeneration_service = request.app.state.regeneration_service
+
+    state: ProjectState | None = await repo.get(req.project_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="project not found")
+
+    outline = await regeneration_service.update_outline(state, req.outline_titles)
+    state.touch()
+    await repo.upsert(state)
+    return UpdateOutlineResponse(project_id=state.project_id, outline=outline)

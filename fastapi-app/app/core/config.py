@@ -1,6 +1,12 @@
 import os
 from dataclasses import dataclass
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 @dataclass(frozen=True)
 class Settings:
