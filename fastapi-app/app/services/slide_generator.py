@@ -114,6 +114,27 @@ def _apply_title_page(slide: SlideContent, people: list[str]) -> SlideContent:
     return slide
 
 
+def _build_title_slide(title: str, people: list[str]) -> SlideContent:
+    slide = SlideContent(
+        title=title,
+        theme="clean_light",
+        slide_variant="title_page",
+        pages=[
+            PageLayout(
+                background="",
+                slots={
+                    "eyebrow": "Presentation",
+                    "headline": title,
+                    "body": "",
+                    "people": people,
+                    "highlight": "",
+                },
+            )
+        ],
+    )
+    return _apply_title_page(slide, people)
+
+
 def _apply_content_variant(slide: SlideContent, variant: str) -> SlideContent:
     slide.slide_variant = variant
     for page in slide.pages:
@@ -140,27 +161,11 @@ def _build_closing_slide(title: str, theme: str, people: list[str]) -> SlideCont
     )
 
 
-def _normalize_slide(
-    raw_slide: dict[str, object],
-    slide_info: dict[str, object],
-    *,
-    index: int,
-    total: int,
-    people: list[str],
-) -> dict[str, object]:
+def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object], *, index: int) -> dict[str, object]:
     role = str(slide_info.get("role", "")).strip().lower()
     tone = str(slide_info.get("tone", "")).strip().lower()
     raw_slide.setdefault("theme", _pick_theme(role, tone))
-    if index == 0:
-        raw_slide["slide_variant"] = "title_page"
-        for page in raw_slide.get("pages", []):
-            if isinstance(page, dict):
-                slots = page.setdefault("slots", {})
-                if isinstance(slots, dict):
-                    slots["people"] = people
-                    slots["highlight"] = ""
-    else:
-        raw_slide["slide_variant"] = _pick_variant(index - 1)
+    raw_slide["slide_variant"] = _pick_variant(index)
     return raw_slide
 
 
@@ -183,13 +188,12 @@ class SlideGenerator:
         people = _extract_people_info(state.source_document_text or state.content)
 
         titles = list(state.outline.keys())
-        slides: list[SlideContent] = []
+        slides: list[SlideContent] = [_build_title_slide(state.title, people)]
         evaluations: dict[str, SlideEvaluation] = {}
 
         for index, title in enumerate(titles):
             item = state.outline[title]
-            previous_slide = slides[index - 1] if index > 0 else None
-            previous_slide_summary = _summarize_slide_for_context(previous_slide)
+            previous_slide_summary = _summarize_slide_for_context(slides[-1] if slides else None)
             next_slide_goal = state.outline[titles[index + 1]].goal if index < len(titles) - 1 else ""
 
             slide_info = item.model_dump()
@@ -205,13 +209,8 @@ class SlideGenerator:
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
             )
-            slide = SlideContent.model_validate(
-                _normalize_slide(raw_slide, slide_info, index=index, total=len(titles), people=people)
-            )
-            if index == 0:
-                slide = _apply_title_page(slide, people)
-            else:
-                slide = _apply_content_variant(slide, _pick_variant(index - 1))
+            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info, index=index))
+            slide = _apply_content_variant(slide, _pick_variant(index))
             slides.append(slide)
 
             raw_evaluation = await self._llm_client.evaluate_slide(

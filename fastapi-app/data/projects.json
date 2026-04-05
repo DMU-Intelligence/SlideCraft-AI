@@ -87,43 +87,30 @@
     },
     "slides": [
       {
-        "title": "서론",
+        "title": "ppt",
         "theme": "clean_light",
         "slide_variant": "title_page",
         "pages": [
           {
-            "background": "#FFFFFF",
+            "background": "",
             "elements": [],
             "slots": {
               "eyebrow": "Presentation",
-              "headline": "서론",
-              "body": "개인의 피부 타입에 맞는 관리가 필요하다.",
-              "bullets": [
-                "피부는 외부 환경으로부터 보호하는 중요한 역할을 한다.",
-                "피부 건강 유지를 위한 관리가 필수적이다.",
-                "개인의 피부 타입을 정확히 파악해야 한다.",
-                "맞춤형 피부관리 방안이 필요하다.",
-                "피부 상태를 객관적으로 분석해야 한다."
-              ],
-              "highlight": "",
+              "headline": "ppt",
+              "body": "",
               "people": [
                 "이름 육나윤"
               ],
-              "left_points": [
-                "피부는 외부 환경으로부터 보호하는 중요한 역할을 한다.",
-                "피부 건강 유지를 위한 관리가 필수적이다.",
-                "개인의 피부 타입을 정확히 파악해야 한다."
-              ],
-              "right_points": [
-                "맞춤형 피부관리 방안이 필요하다.",
-                "피부 상태를 객관적으로 분석해야 한다."
-              ]
+              "highlight": "",
+              "left_points": [],
+              "right_points": [],
+              "bullets": []
             }
           }
         ]
       },
       {
-        "title": "피부 타입 분석",
+        "title": "서론",
         "theme": "clean_light",
         "slide_variant": "content_box_list",
         "pages": [
@@ -131,26 +118,57 @@
             "background": "#FFFFFF",
             "elements": [],
             "slots": {
-              "eyebrow": "피부 타입의 분류",
-              "headline": "피부 타입은 건성, 지성, 중성으로 구분된다.",
-              "body": "각 피부 타입의 특징과 관리 필요성을 이해합시다.",
+              "eyebrow": "피부 관리의 중요성",
+              "headline": "피부 관리의 중요성을 강조합니다.",
+              "body": "피부는 외부 환경으로부터 보호하는 중요한 역할을 합니다.",
               "bullets": [
-                "건성 피부: 수분과 유분 부족, 거칠고 당김.",
-                "지성 피부: 과도한 유분, 번들거림과 여드름 발생.",
-                "중성 피부: 균형 잡힌 상태, 특별한 트러블 없음.",
-                "피부 타입은 유전적 요인과 외부 환경에 영향을 받음.",
-                "개인 맞춤형 관리가 중요함."
+                "피부는 외부 환경으로부터 보호하는 역할을 한다.",
+                "개인의 피부 타입에 맞는 관리가 필요하다."
+              ],
+              "highlight": "피부 건강을 유지하기 위한 관리가 필수적입니다.",
+              "people": [
+                "이름 육나윤"
               ],
               "left_points": [
-                "건성 피부: 수분과 유분 부족, 거칠고 당김.",
-                "지성 피부: 과도한 유분, 번들거림과 여드름 발생.",
-                "중성 피부: 균형 잡힌 상태, 특별한 트러블 없음."
+                "피부는 외부 환경으로부터 보호하는 역할을 한다."
               ],
               "right_points": [
-                "피부 타입은 유전적 요인과 외부 환경에 영향을 받음.",
-                "개인 맞춤형 관리가 중요함."
+                "개인의 피부 타입에 맞는 관리가 필요하다."
               ],
-              "highlight": "피부 타입을 정확히 파악하는 것이 중요합니다.",
+              "title_box_label": "서론"
+            }
+          }
+        ]
+      },
+      {
+        "title": "피부 타입 분석",
+        "theme": "clean_light",
+        "slide_variant": "content_two_panel",
+        "pages": [
+          {
+            "background": "#FFFFFF",
+            "elements": [],
+            "slots": {
+              "eyebrow": "피부 관리",
+              "headline": "피부 타입의 분류와 특징",
+              "body": "피부 타입은 건성, 지성, 중성으로 구분되며, 각 타입에 맞는 관리가 필요합니다.",
+              "bullets": [
+                "건성 피부: 수분과 유분 부족, 거칠고 각질 발생",
+                "지성 피부: 과도한 유분, 모공 막힘 및 여드름 발생",
+                "중성 피부: 유수분 밸런스 유지, 특별한 트러블 없음",
+                "피부 타입은 유전적 요인과 외부 환경에 영향을 받음",
+                "각 피부 타입에 맞는 관리가 중요함"
+              ],
+              "left_points": [
+                "건성 피부: 수분과 유분 부족, 거칠고 각질 발생",
+                "지성 피부: 과도한 유분, 모공 막힘 및 여드름 발생",
+                "중성 피부: 유수분 밸런스 유지, 특별한 트러블 없음"
+              ],
+              "right_points": [
+                "피부 타입은 유전적 요인과 외부 환경에 영향을 받음",
+                "각 피부 타입에 맞는 관리가 중요함"
+              ],
+              "highlight": "피부 타입을 이해하고 맞춤형 관리가 필요합니다.",
               "people": [
                 "이름 육나윤"
               ],
@@ -162,7 +180,7 @@
       {
         "title": "나의 피부 타입",
         "theme": "clean_light",
-        "slide_variant": "content_two_panel",
+        "slide_variant": "content_sidebar",
         "pages": [
           {
             "background": "#FFFFFF",
@@ -172,22 +190,22 @@
               "headline": "자신의 피부 타입을 분석한다.",
               "body": "겨울철에 각질과 유분이 동시에 증가하는 수분 부족형 지성 피부입니다.",
               "bullets": [
-                "겨울철에 각질과 유분이 동시에 증가한다.",
-                "수분 부족형 지성 피부의 특성을 보인다.",
-                "여드름은 자주 발생하지 않지만 뾰루지가 간헐적으로 생긴다.",
-                "유전적 요인과 외부 환경이 피부에 영향을 미친다.",
-                "생활 습관이 피부 상태에 큰 영향을 준다."
+                "겨울철에 각질이 많이 발생합니다.",
+                "유분이 과도하게 분비됩니다.",
+                "여드름은 자주 발생하지 않습니다.",
+                "피부 장벽이 약해질 수 있습니다.",
+                "환경 요인이 피부에 영향을 미칩니다."
               ],
               "left_points": [
-                "겨울철에 각질과 유분이 동시에 증가한다.",
-                "수분 부족형 지성 피부의 특성을 보인다.",
-                "여드름은 자주 발생하지 않지만 뾰루지가 간헐적으로 생긴다."
+                "겨울철에 각질이 많이 발생합니다.",
+                "유분이 과도하게 분비됩니다.",
+                "여드름은 자주 발생하지 않습니다."
               ],
               "right_points": [
-                "유전적 요인과 외부 환경이 피부에 영향을 미친다.",
-                "생활 습관이 피부 상태에 큰 영향을 준다."
+                "피부 장벽이 약해질 수 있습니다.",
+                "환경 요인이 피부에 영향을 미칩니다."
               ],
-              "highlight": "피부 관리의 중요성을 인식하자.",
+              "highlight": "피부 관리의 중요성을 인식합시다.",
               "people": [
                 "이름 육나윤"
               ],
@@ -199,7 +217,7 @@
       {
         "title": "피부 타입에 따른 원인 분석",
         "theme": "clean_light",
-        "slide_variant": "content_sidebar",
+        "slide_variant": "content_split_band",
         "pages": [
           {
             "background": "#FFFFFF",
@@ -207,26 +225,26 @@
             "slots": {
               "eyebrow": "피부 타입 분석",
               "headline": "피부 타입에 영향을 미치는 요인",
-              "body": "피부 타입은 유전적 요인과 외부 환경, 생활 습관의 영향을 받습니다.",
+              "body": "유전적 요인과 외부 환경, 생활 습관이 피부 타입에 미치는 영향을 분석합니다.",
               "bullets": [
-                "유전적 요인이 피부 타입에 영향을 준다.",
-                "겨울철의 차고 건조한 공기가 피부에 미치는 영향.",
-                "피부 관리 제품의 일관성이 중요하다.",
-                "외부 환경과 생활 습관이 피부 상태에 큰 역할을 한다.",
-                "피부 장벽의 수분 유지 기능이 약할 수 있다."
+                "유전적 요인이 피부 타입에 큰 영향을 미친다.",
+                "겨울철의 차고 건조한 공기가 피부에 악영향을 준다.",
+                "미세먼지와 대기 오염이 피부 트러블을 증가시킨다.",
+                "일관성 없는 스킨케어 제품 사용이 문제를 일으킬 수 있다.",
+                "생활 습관이 피부 상태에 지속적인 영향을 미친다."
               ],
               "highlight": "피부 관리의 중요성을 이해하고, 맞춤형 관리가 필요합니다.",
               "people": [
                 "이름 육나윤"
               ],
               "left_points": [
-                "유전적 요인이 피부 타입에 영향을 준다.",
-                "겨울철의 차고 건조한 공기가 피부에 미치는 영향.",
-                "피부 관리 제품의 일관성이 중요하다."
+                "유전적 요인이 피부 타입에 큰 영향을 미친다.",
+                "겨울철의 차고 건조한 공기가 피부에 악영향을 준다.",
+                "미세먼지와 대기 오염이 피부 트러블을 증가시킨다."
               ],
               "right_points": [
-                "외부 환경과 생활 습관이 피부 상태에 큰 역할을 한다.",
-                "피부 장벽의 수분 유지 기능이 약할 수 있다."
+                "일관성 없는 스킨케어 제품 사용이 문제를 일으킬 수 있다.",
+                "생활 습관이 피부 상태에 지속적인 영향을 미친다."
               ],
               "title_box_label": "피부 타입에 따른 원인 분석"
             }
@@ -236,34 +254,34 @@
       {
         "title": "피부 관리 방법 설계",
         "theme": "clean_light",
-        "slide_variant": "content_split_band",
+        "slide_variant": "content_compact",
         "pages": [
           {
             "background": "#FFFFFF",
             "elements": [],
             "slots": {
-              "eyebrow": "피부 관리",
-              "headline": "효과적인 피부 관리 방법을 제안합니다.",
+              "eyebrow": "피부 관리의 중요성",
+              "headline": "효과적인 피부 관리 방법",
               "body": "세안, 보습, 자외선 차단이 중요합니다.",
               "bullets": [
                 "하루 2회 미온수로 세안하기",
-                "히알루론산 및 세라마이드 제품 사용",
-                "논코메도제닉 자외선 차단제 선택",
-                "겨울철 이중 보습법 적용",
-                "계절별 관리 전략 필요"
+                "히알루론산과 세라마이드로 보습하기",
+                "논코메도제닉 자외선 차단제 사용하기",
+                "겨울철 이중 보습법 적용하기",
+                "계절에 맞는 스킨케어 제품 선택하기"
+              ],
+              "highlight": "피부 타입에 맞춘 관리가 필요합니다.",
+              "people": [
+                "이름 육나윤"
               ],
               "left_points": [
                 "하루 2회 미온수로 세안하기",
-                "히알루론산 및 세라마이드 제품 사용",
-                "논코메도제닉 자외선 차단제 선택"
+                "히알루론산과 세라마이드로 보습하기",
+                "논코메도제닉 자외선 차단제 사용하기"
               ],
               "right_points": [
-                "겨울철 이중 보습법 적용",
-                "계절별 관리 전략 필요"
-              ],
-              "highlight": "피부의 유수분 밸런스를 유지하세요.",
-              "people": [
-                "이름 육나윤"
+                "겨울철 이중 보습법 적용하기",
+                "계절에 맞는 스킨케어 제품 선택하기"
               ],
               "title_box_label": "피부 관리 방법 설계"
             }
@@ -273,7 +291,7 @@
       {
         "title": "결론",
         "theme": "clean_light",
-        "slide_variant": "content_compact",
+        "slide_variant": "content_box_list",
         "pages": [
           {
             "background": "#FFFFFF",
@@ -286,7 +304,7 @@
                 "피부의 수분 공급과 유수분 밸런스 유지가 중요하다.",
                 "자신의 피부를 이해하고 관리 루틴을 구성할 수 있었다."
               ],
-              "highlight": "피부 관리의 중요성을 다시 한번 강조합니다.",
+              "highlight": "피부 관리의 중요성을 잊지 마세요.",
               "people": [
                 "이름 육나윤"
               ],
@@ -331,24 +349,6 @@
       "target_audience": "해당 문서를 읽지 않았거나 배경지식이 많지 않을 수 있는 일반 청중",
       "slide_evaluations": {
         "서론": {
-          "passed": false,
-          "score": 3,
-          "checklist": [
-            "slide_info.goal achieved: no",
-            "key_points reflected: no",
-            "bullet count <= 5: no",
-            "minimal duplication with previous slide: yes",
-            "clear for non-experts: yes",
-            "has transition to next slide: yes"
-          ],
-          "issues": [
-            "Goal of the slide does not match the contract.",
-            "Key points from the contract are not fully reflected.",
-            "Bullet count exceeds the limit of 5."
-          ],
-          "feedback": "슬라이드의 목표가 계약과 일치하지 않으며, 주요 포인트가 충분히 반영되지 않았습니다. 또한, 글머리 수가 5개를 초과했습니다."
-        },
-        "피부 타입 분석": {
           "passed": true,
           "score": 5,
           "checklist": [
@@ -360,9 +360,9 @@
             "has transition to next slide: yes"
           ],
           "issues": [],
-          "feedback": "슬라이드는 피부 타입의 분류와 특징을 잘 설명하고 있으며, 이전 슬라이드와의 중복이 최소화되었습니다. 비전문가도 이해하기 쉽게 작성되었습니다."
+          "feedback": "슬라이드가 피부 관리의 중요성을 잘 강조하고 있으며, 주요 포인트가 명확하게 반영되었습니다. 비전문가도 이해하기 쉽게 작성되었습니다."
         },
-        "나의 피부 타입": {
+        "피부 타입 분석": {
           "passed": false,
           "score": 3,
           "checklist": [
@@ -374,9 +374,26 @@
             "has transition to next slide: yes"
           ],
           "issues": [
-            "Bullet count exceeds 5"
+            "Bullet count exceeds 5."
           ],
-          "feedback": "슬라이드의 핵심 포인트가 5개를 초과하여 가독성이 떨어질 수 있습니다. 핵심 포인트를 줄이거나 요약하는 것이 좋습니다."
+          "feedback": "슬라이드의 핵심 포인트가 5개를 초과하여, 간결함이 떨어집니다. 불필요한 중복을 피하고 핵심 정보를 요약하는 것이 좋습니다."
+        },
+        "나의 피부 타입": {
+          "passed": false,
+          "score": 3,
+          "checklist": [
+            "slide_info.goal achieved: yes",
+            "key_points reflected: yes",
+            "bullet count <= 5: no",
+            "minimal duplication with previous slide: yes",
+            "clear for non-experts: yes",
+            "has transition to next slide: no"
+          ],
+          "issues": [
+            "Bullet count exceeds 5.",
+            "No clear transition to the next slide."
+          ],
+          "feedback": "슬라이드의 핵심 포인트가 잘 반영되었으나, 총 6개의 불릿 포인트가 포함되어 있어 5개 이하로 줄여야 합니다. 또한, 다음 슬라이드로의 전환이 명확하지 않습니다."
         },
         "피부 타입에 따른 원인 분석": {
           "passed": false,
@@ -390,26 +407,27 @@
             "has transition to next slide: yes"
           ],
           "issues": [
-            "The slide does not achieve the goal of analyzing factors affecting skin type as it focuses more on the impact of these factors rather than analyzing them.",
+            "The slide does not achieve the goal of analyzing the factors affecting skin type as it focuses more on the effects rather than the analysis.",
             "The bullet count exceeds the limit of 5."
           ],
-          "feedback": "슬라이드는 피부 타입에 영향을 미치는 요인을 분석하는 목표를 달성하지 못했습니다. 또한, 불릿 포인트 수가 5개를 초과했습니다. 목표에 맞게 내용을 조정하고 불릿 포인트 수를 줄여야 합니다."
+          "feedback": "슬라이드는 피부 타입에 영향을 미치는 요인을 분석하는 목표를 달성하지 못하고 있으며, 핵심 포인트가 너무 많습니다. 요인을 더 명확하게 분석하는 방향으로 수정이 필요합니다."
         },
         "피부 관리 방법 설계": {
           "passed": false,
-          "score": 4,
+          "score": 3,
           "checklist": [
             "slide_info.goal achieved: no",
             "key_points reflected: yes",
-            "bullet count <= 5: yes",
+            "bullet count <= 5: no",
             "minimal duplication with previous slide: yes",
             "clear for non-experts: yes",
             "has transition to next slide: yes"
           ],
           "issues": [
-            "슬라이드의 목표가 '효과적인 피부 관리 방법을 제안한다'인데, 제안된 내용이 충분히 효과적인 방법으로 보이지 않음."
+            "슬라이드 목표가 효과적인 피부 관리 방법을 제안하는 것이지만, 제안된 방법이 너무 많아 핵심 포인트가 분산됨.",
+            "제안된 불릿 포인트가 5개를 초과함."
           ],
-          "feedback": "슬라이드의 내용은 피부 관리의 중요성을 강조하고 있지만, 제안된 방법이 좀 더 구체적이고 실천 가능해야 합니다."
+          "feedback": "슬라이드의 핵심 포인트를 더 간결하게 정리하여 목표에 맞게 조정할 필요가 있습니다."
         },
         "결론": {
           "passed": false,
@@ -434,6 +452,6 @@
       ]
     },
     "created_at": "2026-04-05T09:46:40.252947",
-    "updated_at": "2026-04-05T10:26:51.522418"
+    "updated_at": "2026-04-05T11:55:26.965926"
   }
 }

@@ -292,7 +292,7 @@ def _render_title_page(slide: Any, slots: dict[str, Any], theme: dict[str, str |
         top=1.55,
         width=8.8,
         height=1.45,
-        font_size=int(theme["title_size"]) + 8,
+        font_size=int(theme["title_size"]) + 6,
         font_color=str(theme["text"]),
         bold=True,
     )
@@ -300,20 +300,25 @@ def _render_title_page(slide: Any, slots: dict[str, Any], theme: dict[str, str |
         slide,
         text=str(slots.get("body", "")),
         left=1.1,
-        top=3.25,
+        top=4.15,
         width=7.8,
         height=0.8,
         font_size=int(theme["body_size"]) + 1,
         font_color=str(theme["muted"]),
     )
-    _render_people(
-        slide,
-        _coerce_list(slots.get("people")),
-        left=1.1,
-        top=4.55,
-        width=5.5,
-        theme=theme,
-    )
+    people = _coerce_list(slots.get("people"))
+    if people:
+        _add_text_box(
+            slide,
+            text="\n".join(people),
+            left=9.2,
+            top=5.8,
+            width=3.0,
+            height=0.65,
+            font_size=10,
+            font_color=str(theme["muted"]),
+            align="right",
+        )
 
 
 def _render_content_box_list(slide: Any, slots: dict[str, Any], theme: dict[str, str | int]) -> None:
