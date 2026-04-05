@@ -5,6 +5,10 @@ import { useMemo, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { toErrorObject, truncate } from "@/lib/utils";
 import { useApiTestStore } from "@/store/useApiTestStore";
+import { UploadArea } from "@/components/UploadArea";
+
+const inputClass =
+  "w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
 
 export function IngestPanel() {
   const baseUrl = useApiTestStore((s) => s.backendBaseUrl);
@@ -18,7 +22,7 @@ export function IngestPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState("");
   const [title, setTitle] = useState("");
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState("ko");
   const [tone, setTone] = useState("professional");
 
   const ingestSummary = useMemo(() => {
@@ -56,66 +60,90 @@ export function IngestPanel() {
     }
   };
 
-  return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">File Upload / Ingest</h2>
-      <p className="mt-1 text-xs text-zinc-600">Calls POST /ingest/document with multipart form-data.</p>
+  const statusStyles =
+    status === "loading"
+      ? "bg-amber-100 text-amber-800"
+      : status === "success"
+        ? "bg-emerald-100 text-emerald-800"
+        : status === "error"
+          ? "bg-rose-100 text-rose-800"
+          : "bg-gray-100 text-gray-700";
 
-      <div className="mt-3 space-y-2">
-        <input
-          type="file"
-          className="w-full text-sm"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-        <input
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          placeholder="project_id (optional)"
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-        />
-        <input
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          placeholder="title (optional)"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <div className="grid grid-cols-2 gap-2">
+  return (
+    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-lg md:p-6">
+      <h2 className="text-sm font-semibold text-gray-900">문서 업로드 · Ingest</h2>
+      <p className="mt-1 text-xs text-gray-600">POST /ingest/document (multipart)</p>
+
+      <div className="mt-4 space-y-5">
+        <div>
+          <label className="mb-3 block text-sm font-semibold text-gray-700">문서 파일</label>
+          <UploadArea onFileSelect={setFile} selectedFile={file} />
+        </div>
+
+        <div>
+          <label htmlFor="ingest-project-id" className="mb-3 block text-sm font-semibold text-gray-700">
+            프로젝트 ID (선택)
+          </label>
           <input
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            placeholder="language"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            id="ingest-project-id"
+            className={inputClass}
+            placeholder="비우면 자동 생성"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label htmlFor="ingest-title" className="mb-3 block text-sm font-semibold text-gray-700">
+            발표 제목 (선택)
+          </label>
           <input
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-            placeholder="tone"
-            value={tone}
-            onChange={(e) => setTone(e.target.value)}
+            id="ingest-title"
+            className={inputClass}
+            placeholder="비우면 파일명 사용"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="ingest-lang" className="mb-2 block text-sm font-semibold text-gray-700">
+              언어
+            </label>
+            <input id="ingest-lang" className={inputClass} placeholder="ko / en" value={language} onChange={(e) => setLanguage(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="ingest-tone" className="mb-2 block text-sm font-semibold text-gray-700">
+              톤
+            </label>
+            <input id="ingest-tone" className={inputClass} placeholder="professional" value={tone} onChange={(e) => setTone(e.target.value)} />
+          </div>
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         <button
-          className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          type="button"
+          className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-all hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300"
           disabled={!file || status === "loading"}
           onClick={handleIngest}
         >
-          {status === "loading" ? "Ingesting..." : "Ingest Document"}
+          {status === "loading" ? "처리 중…" : "문서 반영하기"}
         </button>
-        <span className="rounded-full bg-zinc-100 px-2 py-1 text-xs text-zinc-700">{status}</span>
+        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles}`}>{status}</span>
       </div>
 
       {ingestSummary && (
-        <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-800">
+        <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50/80 p-4 text-xs text-gray-800">
           <div>
-            <span className="font-semibold">project_id:</span> {ingestSummary.projectId}
-          </div>
-          <div>
-            <span className="font-semibold">file_type:</span> {ingestSummary.fileType || "(unknown)"}
+            <span className="font-semibold text-gray-900">project_id:</span> {ingestSummary.projectId}
           </div>
           <div className="mt-1">
-            <span className="font-semibold">content preview:</span> {ingestSummary.contentPreview}
+            <span className="font-semibold text-gray-900">file_type:</span> {ingestSummary.fileType || "(unknown)"}
+          </div>
+          <div className="mt-2">
+            <span className="font-semibold text-gray-900">content 미리보기:</span> {ingestSummary.contentPreview}
           </div>
         </div>
       )}
