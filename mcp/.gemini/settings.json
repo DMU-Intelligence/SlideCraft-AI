@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pptx_pipeline": {
+      "command": "python",
+      "args": [ "C:/Users/Tmforl/Desktop/고급인공지능/project/mcp/server.py"],
+      "env": {
+         "GOOGLE_API_KEY": "AIzaSyDay6zcfBf7JamHyNBl9mL6ljCntLyEf9c"
+       },
+       "cwd": "C:/Users/Tmforl/Desktop/고급인공지능/project/mcp",
+          "trust": true
+        }
+      }
+    }
