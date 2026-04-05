@@ -13,6 +13,7 @@ class OutlineItem(BaseModel):
     tone: str = "informative"
     description: str
     page_size: int = 1
+    preferred_variant: str | None = None
 
 
 class TextBoxElement(BaseModel):
@@ -62,10 +63,13 @@ SlideElement = Annotated[
 class PageLayout(BaseModel):
     background: str = "#FFFFFF"
     elements: list[SlideElement] = Field(default_factory=list)
+    slots: dict[str, Any] = Field(default_factory=dict)
 
 
 class SlideContent(BaseModel):
     title: str
+    theme: str = "clean_light"
+    slide_variant: Literal["title", "section", "summary", "two_column"] = "summary"
     pages: list[PageLayout] = Field(default_factory=list)
 
 

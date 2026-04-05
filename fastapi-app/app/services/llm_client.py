@@ -25,10 +25,41 @@ def _parse_json(text: str) -> dict[str, Any]:
 def _extract_slide_bullets(slide: dict[str, Any]) -> list[str]:
     bullets: list[str] = []
     for page in slide.get("pages", []):
+        slots = page.get("slots", {})
+        for key in ("bullets", "left_points", "right_points"):
+            value = slots.get(key, [])
+            if isinstance(value, list):
+                bullets.extend(str(item) for item in value)
         for element in page.get("elements", []):
             if element.get("type") == "bullet_list":
                 bullets.extend(str(item) for item in element.get("items", []))
     return bullets
+
+
+def _pick_slide_variant(slide_info: dict[str, Any]) -> str:
+    preferred_variant = str(slide_info.get("preferred_variant") or "").strip()
+    if preferred_variant in {"title", "section", "summary", "two_column"}:
+        return preferred_variant
+
+    role = str(slide_info.get("role", "")).strip().lower()
+    key_points = slide_info.get("key_points", [])
+    if role == "problem_intro":
+        return "title"
+    if role in {"summary", "solution"}:
+        return "summary"
+    if isinstance(key_points, list) and len(key_points) >= 4:
+        return "two_column"
+    return "section"
+
+
+def _pick_theme(slide_info: dict[str, Any]) -> str:
+    tone = str(slide_info.get("tone", "")).strip().lower()
+    role = str(slide_info.get("role", "")).strip().lower()
+    if tone in {"closing", "persuasive"} or role == "summary":
+        return "bold_dark"
+    if role == "analysis":
+        return "editorial"
+    return "clean_light"
 
 
 class LLMClient(ABC):
@@ -164,9 +195,20 @@ You create one presentation slide in JSON.
 Return valid JSON only with this shape:
 {{
   "title": "string",
+  "theme": "clean_light|bold_dark|editorial",
+  "slide_variant": "title|section|summary|two_column",
   "pages": [
     {{
       "background": "#FFFFFF",
+      "slots": {{
+        "eyebrow": "optional short label",
+        "headline": "main message",
+        "body": "supporting sentence",
+        "bullets": ["...", "..."],
+        "left_points": ["...", "..."],
+        "right_points": ["...", "..."],
+        "highlight": "optional short callout"
+      }},
       "elements": [
         {{
           "type": "text_box",
@@ -210,13 +252,13 @@ Current slide contract:
 
 Rules:
 - This is a fill-in task based on the contract above, not a free rewrite.
-- The first element on each page is the page header.
-- The first element must be a short title-style label, not a full sentence.
-- Prefer noun phrases or compact section titles for the first element.
+- Prefer `slots` as the primary representation.
+- You may leave `elements` empty when `slots` is sufficient.
+- Pick one `slide_variant` and keep the slide faithful to that variant.
 - Reflect the slide goal and key_points directly.
 - Use at most 5 bullets per page.
 - Keep wording easy for non-experts.
-- Add one short supporting text box beyond the title and bullets when useful.
+- Add one short supporting body or highlight when useful.
 - Use only source-backed content.
 - Keep the slide connected to the previous and next flow.
 - Write in {language}.
@@ -361,8 +403,24 @@ class MockLLMClient(LLMClient):
     ) -> dict[str, Any]:
         display_title = str(slide_info["title"]).strip()
         bullets = slide_info.get("key_points", [])[:5]
+        slide_variant = _pick_slide_variant(slide_info)
+        theme = _pick_theme(slide_info)
+        page_background = "#FFFDF8" if theme == "editorial" else "#0F172A" if theme == "bold_dark" else "#F8FAFC"
+        slots: dict[str, Any] = {
+            "eyebrow": str(slide_info.get("role", "")).replace("_", " ").title(),
+            "headline": display_title,
+            "body": str(slide_info.get("description", "")),
+            "highlight": str(slide_info.get("goal", "")),
+        }
+        if slide_variant == "two_column":
+            midpoint = max(1, (len(bullets) + 1) // 2)
+            slots["left_points"] = bullets[:midpoint]
+            slots["right_points"] = bullets[midpoint:]
+        else:
+            slots["bullets"] = bullets
         page = {
-            "background": "#FFFFFF",
+            "background": page_background,
+            "slots": slots,
             "elements": [
                 {
                     "type": "text_box",
@@ -405,7 +463,12 @@ class MockLLMClient(LLMClient):
                 },
             ],
         }
-        return {"title": slide_info["title"], "pages": [page]}
+        return {
+            "title": slide_info["title"],
+            "theme": theme,
+            "slide_variant": slide_variant,
+            "pages": [page],
+        }
 
     async def evaluate_slide(
         self,

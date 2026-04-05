@@ -16,6 +16,9 @@ export function ProjectStateViewer() {
   const effectiveSlides = generateAll?.slides ?? slides?.slides ?? (regenSlide?.slide ? [regenSlide.slide] : []);
   const effectiveNotes = generateAll?.notes ?? notes?.notes ?? "";
   const outlineTitles = Object.keys(effectiveOutline);
+  const firstSlide = effectiveSlides[0];
+  const firstPage = firstSlide?.pages?.[0];
+  const slotKeys = firstPage?.slots ? Object.keys(firstPage.slots) : [];
 
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -37,6 +40,15 @@ export function ProjectStateViewer() {
         </div>
         <div>
           <span className="font-semibold">slides:</span> {effectiveSlides.length}
+        </div>
+        <div>
+          <span className="font-semibold">design theme:</span> {firstSlide?.theme || "(none)"}
+        </div>
+        <div>
+          <span className="font-semibold">slide variant:</span> {firstSlide?.slide_variant || "(none)"}
+        </div>
+        <div>
+          <span className="font-semibold">slot keys:</span> {slotKeys.length ? slotKeys.join(" | ") : "(none)"}
         </div>
         <div>
           <span className="font-semibold">notes preview:</span>{" "}

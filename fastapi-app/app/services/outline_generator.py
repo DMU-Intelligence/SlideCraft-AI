@@ -5,6 +5,17 @@ from ..schemas.generate import OutlineItem
 from .llm_client import LLMClient
 
 
+def _preferred_variant_for_role(role: str, key_points: list[str]) -> str:
+    role = role.strip().lower()
+    if role == "problem_intro":
+        return "title"
+    if role in {"summary", "solution"}:
+        return "summary"
+    if len(key_points) >= 4:
+        return "two_column"
+    return "section"
+
+
 class OutlineGenerator:
     def __init__(self, llm_client: LLMClient) -> None:
         self._llm_client = llm_client
@@ -25,7 +36,13 @@ class OutlineGenerator:
             presentation_goal=presentation_goal,
             target_audience=target_audience,
         )
-        return {
-            title: OutlineItem.model_validate(item)
-            for title, item in raw.items()
-        }
+        outline: dict[str, OutlineItem] = {}
+        for title, item in raw.items():
+            outline_item = OutlineItem.model_validate(item)
+            if not outline_item.preferred_variant:
+                outline_item.preferred_variant = _preferred_variant_for_role(
+                    outline_item.role,
+                    outline_item.key_points,
+                )
+            outline[title] = outline_item
+        return outline

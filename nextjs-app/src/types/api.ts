@@ -28,6 +28,7 @@ export interface OutlineItem {
   tone: string;
   description: string;
   page_size: number;
+  preferred_variant?: string | null;
 }
 
 export interface TextBoxElement {
@@ -73,10 +74,13 @@ export type SlideElement = TextBoxElement | ShapeElement | BulletListElement;
 export interface PageLayout {
   background: string;
   elements: SlideElement[];
+  slots: Record<string, JsonValue>;
 }
 
 export interface SlideContent {
   title: string;
+  theme: "clean_light" | "bold_dark" | "editorial";
+  slide_variant: "title" | "section" | "summary" | "two_column";
   pages: PageLayout[];
 }
 

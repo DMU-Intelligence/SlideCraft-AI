@@ -10,6 +10,10 @@ def _summarize_slide_for_context(slide: SlideContent | None) -> str:
         return ""
     bullets: list[str] = []
     for page in slide.pages:
+        for key in ("bullets", "left_points", "right_points"):
+            slot_value = page.slots.get(key, [])
+            if isinstance(slot_value, list):
+                bullets.extend(str(item) for item in slot_value)
         for element in page.elements:
             if getattr(element, "type", "") == "bullet_list":
                 bullets.extend(getattr(element, "items", []))
@@ -17,6 +21,33 @@ def _summarize_slide_for_context(slide: SlideContent | None) -> str:
     if bullets:
         return f"{slide.title}: " + "; ".join(bullets)
     return slide.title
+
+
+def _pick_theme(role: str, tone: str) -> str:
+    if tone in {"closing", "persuasive"} or role == "summary":
+        return "bold_dark"
+    if role == "analysis":
+        return "editorial"
+    return "clean_light"
+
+
+def _pick_variant(role: str, key_points: list[str]) -> str:
+    if role == "problem_intro":
+        return "title"
+    if role in {"summary", "solution"}:
+        return "summary"
+    if len(key_points) >= 4:
+        return "two_column"
+    return "section"
+
+
+def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
+    role = str(slide_info.get("role", "")).strip().lower()
+    tone = str(slide_info.get("tone", "")).strip().lower()
+    key_points = [str(item) for item in slide_info.get("key_points", []) if isinstance(item, str)]
+    raw_slide.setdefault("theme", _pick_theme(role, tone))
+    raw_slide.setdefault("slide_variant", _pick_variant(role, key_points))
+    return raw_slide
 
 
 class SlideGenerator:
@@ -58,7 +89,7 @@ class SlideGenerator:
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
             )
-            slide = SlideContent.model_validate(raw_slide)
+            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info))
             slides.append(slide)
 
             raw_evaluation = await self._llm_client.evaluate_slide(
