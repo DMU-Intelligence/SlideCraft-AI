@@ -29,13 +29,37 @@ async def handle_list_tools() -> list[Tool]:
     """도구 목록 정의: 순수 pptx 라이브러리 기능만 제공"""
     return [
         Tool(
+            name="get_full_presentation_json",
+            description="프레젠테이션의 모든 슬라이드와 각 슬라이드 내 요소(텍스트, 위치, 크기 등)를 JSON 형식으로 반환합니다.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "presentation_id": {"type": "string"}
+                },
+                "required": ["presentation_id"]
+            }
+        ),
+        Tool(
+            name="get_presentation_info",
+            description="프레젠테이션의 슬라이드 개수와 레이아웃 목록을 가져옵니다.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "presentation_id": {"type": "string"}
+                },
+                "required": ["presentation_id"]
+            }
+        ),
+        
+        Tool(
             name="create_presentation",
-            description="새로운 PPT 프레젠테이션 객체를 메모리에 생성하고 presentation_id를 반환합니다.",
+            description="새로운 PPT 프레젠테이션 객체를 메모리에 생성하거나 템플릿을 불러오고 presentation_id를 반환합니다.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "width_inches": {"type": "number", "default": 13.33},
-                    "height_inches": {"type": "number", "default": 7.5}
+                    "height_inches": {"type": "number", "default": 7.5},
+                    "template_path": {"type": "string", "description": "불러올 템플릿 파일(.pptx)의 경로 (선택 사항)"}
                 }
             }
         ),
@@ -146,14 +170,130 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[TextConten
         arguments = {}
 
     if name == "create_presentation":
-        w = arguments.get("width_inches", 13.33)
-        h = arguments.get("height_inches", 7.5)
+        template_path = arguments.get("template_path")
         prs_id = str(uuid.uuid4())
-        prs = Presentation()
-        prs.slide_width = Inches(w)
-        prs.slide_height = Inches(h)
+        
+        if template_path:
+            if not os.path.exists(template_path):
+                return [TextContent(type="text", text=f"Error: Template file not found at {template_path}")]
+            try:
+                prs = Presentation(template_path)
+            except Exception as e:
+                return [TextContent(type="text", text=f"Error loading template: {str(e)}")]
+        else:
+            w = arguments.get("width_inches", 13.33)
+            h = arguments.get("height_inches", 7.5)
+            prs = Presentation()
+            prs.slide_width = Inches(w)
+            prs.slide_height = Inches(h)
+            
         presentations[prs_id] = prs
         return [TextContent(type="text", text=f"{prs_id}")]
+
+    elif name == "get_presentation_info":
+        prs_id = arguments.get("presentation_id")
+        if prs_id not in presentations: return [TextContent(type="text", text="Error: Presentation not found.")]
+        prs = presentations[prs_id]
+        
+        layouts = [{"index": i, "name": layout.name} for i, layout in enumerate(prs.slide_layouts)]
+        slide_count = len(prs.slides)
+        
+        import json
+        info = {
+            "slide_count": slide_count,
+            "layouts": layouts
+        }
+        return [TextContent(type="text", text=json.dumps(info, indent=2, ensure_ascii=False))]
+
+    elif name == "get_full_presentation_json":
+        prs_id = arguments.get("presentation_id")
+        if prs_id not in presentations: return [TextContent(type="text", text="Error: Presentation not found.")]
+        prs = presentations[prs_id]
+        
+        def get_color_info(color_obj):
+            try:
+                if not color_obj: return None
+                res = {"type": str(color_obj.type)}
+                if hasattr(color_obj, "rgb") and color_obj.rgb:
+                    res["rgb"] = f"#{str(color_obj.rgb)}"
+                if hasattr(color_obj, "theme_color") and color_obj.theme_color:
+                    res["theme_color"] = str(color_obj.theme_color)
+                return res
+            except:
+                return None
+
+        def get_fill_info(fill_obj):
+            try:
+                res = {"type": str(fill_obj.type)}
+                if hasattr(fill_obj, "fore_color"):
+                    res["fore_color"] = get_color_info(fill_obj.fore_color)
+                return res
+            except:
+                return None
+
+        slides_data = []
+        for i, slide in enumerate(prs.slides):
+            bg_info = None
+            try:
+                bg_info = get_fill_info(slide.background.fill)
+            except: pass
+
+            elements = []
+            for shape in slide.shapes:
+                el = {
+                    "name": shape.name,
+                    "type": str(shape.shape_type),
+                    "left": shape.left.inches if shape.left else 0,
+                    "top": shape.top.inches if shape.top else 0,
+                    "width": shape.width.inches if shape.width else 0,
+                    "height": shape.height.inches if shape.height else 0,
+                }
+
+                try:
+                    if hasattr(shape, "fill"):
+                        el["fill"] = get_fill_info(shape.fill)
+                    if hasattr(shape, "line"):
+                        el["line"] = {
+                            "color": get_color_info(shape.line.color),
+                            "width_pt": shape.line.width.pt if shape.line.width else 0,
+                            "dash_style": str(shape.line.dash_style) if shape.line.dash_style else None
+                        }
+                except: pass
+
+                if shape.has_text_frame:
+                    el["text"] = shape.text
+                    paragraphs = []
+                    for p in shape.text_frame.paragraphs:
+                        p_data = {
+                            "alignment": str(p.alignment),
+                            "runs": []
+                        }
+                        for run in p.runs:
+                            r_data = {
+                                "text": run.text,
+                                "font": {
+                                    "name": run.font.name,
+                                    "size_pt": run.font.size.pt if run.font.size else None,
+                                    "bold": run.font.bold,
+                                    "italic": run.font.italic,
+                                    "color": get_color_info(run.font.color)
+                                }
+                            }
+                            p_data["runs"].append(r_data)
+                        paragraphs.append(p_data)
+                    el["paragraphs"] = paragraphs
+                
+                elements.append(el)
+            
+            slides_data.append({
+                "slide_index": i,
+                "layout_name": slide.slide_layout.name,
+                "background": bg_info,
+                "elements": elements
+            })
+            
+        import json
+        return [TextContent(type="text", text=json.dumps(slides_data, indent=2, ensure_ascii=False))]
 
     elif name == "add_slide":
         prs_id = arguments.get("presentation_id")
