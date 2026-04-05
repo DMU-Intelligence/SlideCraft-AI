@@ -5,14 +5,15 @@ from typing import Annotated, Any, Literal, Union
 from pydantic import BaseModel, Field
 
 
-# ── Outline ────────────────────────────────────────────────────────────────────
-
 class OutlineItem(BaseModel):
+    id: str
+    role: str
+    goal: str
+    key_points: list[str] = Field(default_factory=list)
+    tone: str = "informative"
     description: str
     page_size: int = 1
 
-
-# ── Element 타입 ───────────────────────────────────────────────────────────────
 
 class TextBoxElement(BaseModel):
     type: Literal["text_box"] = "text_box"
@@ -45,24 +46,21 @@ class BulletListElement(BaseModel):
     width: float
     height: float
     items: list[str]
-    bullet_char: str = "▸"
+    bullet_char: str = "-"
     bullet_color: str = "#5B8DEF"
     font_name: str = "Malgun Gothic"
     font_size: int = 16
-    font_color: str = "#D4D8E8"
+    font_color: str = "#1E293B"
 
 
-# Pydantic v2 discriminated union
 SlideElement = Annotated[
     Union[TextBoxElement, ShapeElement, BulletListElement],
     Field(discriminator="type"),
 ]
 
 
-# ── 슬라이드 구조 ──────────────────────────────────────────────────────────────
-
 class PageLayout(BaseModel):
-    background: str = "#0F172A"
+    background: str = "#FFFFFF"
     elements: list[SlideElement] = Field(default_factory=list)
 
 
@@ -71,7 +69,13 @@ class SlideContent(BaseModel):
     pages: list[PageLayout] = Field(default_factory=list)
 
 
-# ── Request / Response ─────────────────────────────────────────────────────────
+class SlideEvaluation(BaseModel):
+    passed: bool
+    score: int = Field(ge=1, le=5)
+    checklist: list[str] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    feedback: str = ""
+
 
 class GenerateOutlineRequest(BaseModel):
     project_id: int

@@ -12,8 +12,8 @@ class NotesGenerator:
         if not state.slides:
             raise ValueError("슬라이드가 없습니다. 먼저 /generate/slides를 호출하세요.")
 
-        slides_data = [s.model_dump() for s in state.slides]
         return await self._llm_client.generate_notes(
-            slides=slides_data,
+            slides=[slide.model_dump() for slide in state.slides],
+            outline={title: item.model_dump() for title, item in state.outline.items()},
             language=state.language,
         )

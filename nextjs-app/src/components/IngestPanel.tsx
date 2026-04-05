@@ -25,9 +25,8 @@ export function IngestPanel() {
     if (!ingestResult) return null;
     return {
       projectId: ingestResult.project_id,
-      chunkCount: ingestResult.chunks?.length ?? 0,
-      summary: ingestResult.summary ?? "",
-      rawTextPreview: ingestResult.raw_text ? truncate(ingestResult.raw_text, 220) : "",
+      contentPreview: truncate(ingestResult.content ?? "", 220),
+      fileType: ingestResult.metadata?.file_type ?? "",
     };
   }, [ingestResult]);
 
@@ -113,17 +112,13 @@ export function IngestPanel() {
             <span className="font-semibold">project_id:</span> {ingestSummary.projectId}
           </div>
           <div>
-            <span className="font-semibold">chunks:</span> {ingestSummary.chunkCount}
+            <span className="font-semibold">file_type:</span> {ingestSummary.fileType || "(unknown)"}
           </div>
           <div className="mt-1">
-            <span className="font-semibold">summary:</span> {truncate(ingestSummary.summary, 200)}
-          </div>
-          <div className="mt-1">
-            <span className="font-semibold">raw_text preview:</span> {ingestSummary.rawTextPreview}
+            <span className="font-semibold">content preview:</span> {ingestSummary.contentPreview}
           </div>
         </div>
       )}
     </section>
   );
 }
-
