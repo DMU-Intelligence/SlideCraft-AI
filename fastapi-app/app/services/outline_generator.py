@@ -8,12 +8,10 @@ from .llm_client import LLMClient
 def _preferred_variant_for_role(role: str, key_points: list[str]) -> str:
     role = role.strip().lower()
     if role == "problem_intro":
-        return "title"
-    if role in {"summary", "solution"}:
-        return "summary"
+        return "title_page"
     if len(key_points) >= 4:
-        return "two_column"
-    return "section"
+        return "content_two_panel"
+    return "content_box_list"
 
 
 class OutlineGenerator:

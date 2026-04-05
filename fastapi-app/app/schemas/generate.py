@@ -69,7 +69,19 @@ class PageLayout(BaseModel):
 class SlideContent(BaseModel):
     title: str
     theme: str = "clean_light"
-    slide_variant: Literal["title", "section", "summary", "two_column"] = "summary"
+    slide_variant: Literal[
+        "title_page",
+        "content_box_list",
+        "content_two_panel",
+        "content_sidebar",
+        "content_split_band",
+        "content_compact",
+        "closing_page",
+        "title",
+        "section",
+        "summary",
+        "two_column",
+    ] = "summary"
     pages: list[PageLayout] = Field(default_factory=list)
 
 

@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import re
+
 from ..models.project_state import ProjectState
-from ..schemas.generate import SlideContent, SlideEvaluation
+from ..schemas.generate import PageLayout, SlideContent, SlideEvaluation
 from .llm_client import LLMClient
+
+_CONTENT_VARIANTS = [
+    "content_box_list",
+    "content_two_panel",
+    "content_sidebar",
+    "content_split_band",
+    "content_compact",
+]
 
 
 def _summarize_slide_for_context(slide: SlideContent | None) -> str:
@@ -31,22 +41,126 @@ def _pick_theme(role: str, tone: str) -> str:
     return "clean_light"
 
 
-def _pick_variant(role: str, key_points: list[str]) -> str:
-    if role == "problem_intro":
-        return "title"
-    if role in {"summary", "solution"}:
-        return "summary"
-    if len(key_points) >= 4:
-        return "two_column"
-    return "section"
+def _pick_variant(index: int) -> str:
+    return _CONTENT_VARIANTS[index % len(_CONTENT_VARIANTS)]
 
 
-def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
+def _extract_people_info(text: str) -> list[str]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    candidates: list[str] = []
+    patterns = [
+        re.compile(r"(발표자|작성자|팀원|팀명|조원|소속|이름)\s*[:：]\s*(.+)", re.IGNORECASE),
+        re.compile(r"(presented by|presenter|team|author|authors|members|by)\s*[:：]?\s*(.+)", re.IGNORECASE),
+    ]
+
+    for line in lines[:40]:
+        for pattern in patterns:
+            match = pattern.search(line)
+            if match:
+                value = " ".join(part.strip() for part in match.groups() if part.strip())
+                candidates.append(value)
+                break
+
+    if not candidates:
+        short_lines = [line for line in lines[:12] if 3 <= len(line) <= 40]
+        for line in short_lines:
+            if any(token in line.lower() for token in ("대학교", "학과", "team", "presenter", "발표", "작성")):
+                candidates.append(line)
+
+    deduped: list[str] = []
+    for candidate in candidates:
+        normalized = candidate.strip()
+        if normalized and normalized not in deduped:
+            deduped.append(normalized)
+    return deduped[:4]
+
+
+def _ensure_slot_lists(page: PageLayout, slide_title: str) -> None:
+    slots = page.slots
+    slots.setdefault("headline", slide_title)
+    bullets = slots.get("bullets")
+    left_points = slots.get("left_points")
+    right_points = slots.get("right_points")
+
+    if not isinstance(bullets, list):
+        bullets = []
+    if not isinstance(left_points, list):
+        left_points = []
+    if not isinstance(right_points, list):
+        right_points = []
+
+    if not bullets and (left_points or right_points):
+        slots["bullets"] = [*left_points, *right_points]
+    elif bullets and not (left_points or right_points):
+        midpoint = max(1, (len(bullets) + 1) // 2)
+        slots["left_points"] = bullets[:midpoint]
+        slots["right_points"] = bullets[midpoint:]
+    else:
+        slots["left_points"] = left_points
+        slots["right_points"] = right_points
+        slots["bullets"] = bullets
+
+
+def _apply_title_page(slide: SlideContent, people: list[str]) -> SlideContent:
+    if not slide.pages:
+        slide.pages = [PageLayout()]
+    page = slide.pages[0]
+    _ensure_slot_lists(page, slide.title)
+    page.slots["eyebrow"] = "Presentation"
+    page.slots["headline"] = slide.title
+    page.slots["people"] = people
+    page.slots["highlight"] = ""
+    slide.slide_variant = "title_page"
+    return slide
+
+
+def _apply_content_variant(slide: SlideContent, variant: str) -> SlideContent:
+    slide.slide_variant = variant
+    for page in slide.pages:
+        _ensure_slot_lists(page, slide.title)
+        page.slots.setdefault("title_box_label", slide.title)
+    return slide
+
+
+def _build_closing_slide(title: str, theme: str, people: list[str]) -> SlideContent:
+    return SlideContent(
+        title=title,
+        theme=theme,
+        slide_variant="closing_page",
+        pages=[
+            PageLayout(
+                background="",
+                slots={
+                    "headline": title,
+                    "body": "발표를 들어주셔서 감사합니다.",
+                    "people": people,
+                },
+            )
+        ],
+    )
+
+
+def _normalize_slide(
+    raw_slide: dict[str, object],
+    slide_info: dict[str, object],
+    *,
+    index: int,
+    total: int,
+    people: list[str],
+) -> dict[str, object]:
     role = str(slide_info.get("role", "")).strip().lower()
     tone = str(slide_info.get("tone", "")).strip().lower()
-    key_points = [str(item) for item in slide_info.get("key_points", []) if isinstance(item, str)]
     raw_slide.setdefault("theme", _pick_theme(role, tone))
-    raw_slide.setdefault("slide_variant", _pick_variant(role, key_points))
+    if index == 0:
+        raw_slide["slide_variant"] = "title_page"
+        for page in raw_slide.get("pages", []):
+            if isinstance(page, dict):
+                slots = page.setdefault("slots", {})
+                if isinstance(slots, dict):
+                    slots["people"] = people
+                    slots["highlight"] = ""
+    else:
+        raw_slide["slide_variant"] = _pick_variant(index - 1)
     return raw_slide
 
 
@@ -64,8 +178,9 @@ class SlideGenerator:
         )
         target_audience = state.metadata.get(
             "target_audience",
-            "해당 문서를 읽지 않았거나 배경지식이 많지 않을 수 있는 일반 청중",
+            "해당 문서를 처음 접하는 일반 청중",
         )
+        people = _extract_people_info(state.source_document_text or state.content)
 
         titles = list(state.outline.keys())
         slides: list[SlideContent] = []
@@ -79,6 +194,7 @@ class SlideGenerator:
 
             slide_info = item.model_dump()
             slide_info["title"] = title
+            slide_info["people"] = people
 
             raw_slide = await self._llm_client.generate_slide(
                 presentation_goal=presentation_goal,
@@ -89,7 +205,13 @@ class SlideGenerator:
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
             )
-            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info))
+            slide = SlideContent.model_validate(
+                _normalize_slide(raw_slide, slide_info, index=index, total=len(titles), people=people)
+            )
+            if index == 0:
+                slide = _apply_title_page(slide, people)
+            else:
+                slide = _apply_content_variant(slide, _pick_variant(index - 1))
             slides.append(slide)
 
             raw_evaluation = await self._llm_client.evaluate_slide(
@@ -102,7 +224,11 @@ class SlideGenerator:
             )
             evaluations[title] = SlideEvaluation.model_validate(raw_evaluation)
 
+        closing_theme = slides[-1].theme if slides else "clean_light"
+        slides.append(_build_closing_slide("감사합니다", closing_theme, people))
+
         state.metadata["slide_evaluations"] = {
             key: value.model_dump() for key, value in evaluations.items()
         }
+        state.metadata["people_info"] = people
         return slides

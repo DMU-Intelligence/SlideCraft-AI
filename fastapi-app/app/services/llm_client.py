@@ -38,7 +38,19 @@ def _extract_slide_bullets(slide: dict[str, Any]) -> list[str]:
 
 def _pick_slide_variant(slide_info: dict[str, Any]) -> str:
     preferred_variant = str(slide_info.get("preferred_variant") or "").strip()
-    if preferred_variant in {"title", "section", "summary", "two_column"}:
+    if preferred_variant in {
+        "title_page",
+        "content_box_list",
+        "content_two_panel",
+        "content_sidebar",
+        "content_split_band",
+        "content_compact",
+        "closing_page",
+        "title",
+        "section",
+        "summary",
+        "two_column",
+    }:
         return preferred_variant
 
     role = str(slide_info.get("role", "")).strip().lower()
@@ -196,7 +208,7 @@ Return valid JSON only with this shape:
 {{
   "title": "string",
   "theme": "clean_light|bold_dark|editorial",
-  "slide_variant": "title|section|summary|two_column",
+  "slide_variant": "title_page|content_box_list|content_two_panel|content_sidebar|content_split_band|content_compact|closing_page",
   "pages": [
     {{
       "background": "#FFFFFF",
@@ -207,7 +219,8 @@ Return valid JSON only with this shape:
         "bullets": ["...", "..."],
         "left_points": ["...", "..."],
         "right_points": ["...", "..."],
-        "highlight": "optional short callout"
+        "highlight": "optional short callout",
+        "people": ["presenter or team information when available"]
       }},
       "elements": [
         {{
@@ -255,6 +268,7 @@ Rules:
 - Prefer `slots` as the primary representation.
 - You may leave `elements` empty when `slots` is sufficient.
 - Pick one `slide_variant` and keep the slide faithful to that variant.
+- If the slide is the opening slide and speaker/team info is present in the contract, include it in `people`.
 - Reflect the slide goal and key_points directly.
 - Use at most 5 bullets per page.
 - Keep wording easy for non-experts.

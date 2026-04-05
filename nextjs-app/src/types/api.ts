@@ -80,7 +80,18 @@ export interface PageLayout {
 export interface SlideContent {
   title: string;
   theme: "clean_light" | "bold_dark" | "editorial";
-  slide_variant: "title" | "section" | "summary" | "two_column";
+  slide_variant:
+    | "title_page"
+    | "content_box_list"
+    | "content_two_panel"
+    | "content_sidebar"
+    | "content_split_band"
+    | "content_compact"
+    | "closing_page"
+    | "title"
+    | "section"
+    | "summary"
+    | "two_column";
   pages: PageLayout[];
 }
 

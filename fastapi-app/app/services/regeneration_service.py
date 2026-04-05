@@ -33,12 +33,10 @@ def _pick_theme(role: str, tone: str) -> str:
 
 def _pick_variant(role: str, key_points: list[str]) -> str:
     if role == "problem_intro":
-        return "title"
-    if role in {"summary", "solution"}:
-        return "summary"
+        return "title_page"
     if len(key_points) >= 4:
-        return "two_column"
-    return "section"
+        return "content_two_panel"
+    return "content_box_list"
 
 
 def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
