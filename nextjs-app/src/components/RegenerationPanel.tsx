@@ -16,19 +16,18 @@ export function RegenerationPanel() {
   const setRegenerateSlideResult = useApiTestStore((s) => s.setRegenerateSlideResult);
   const setRegenerateNotesResult = useApiTestStore((s) => s.setRegenerateNotesResult);
 
-  const [slideId, setSlideId] = useState("slide_01");
-  const [force, setForce] = useState(false);
-  const [tone, setTone] = useState("professional");
+  const [slideTitle, setSlideTitle] = useState("서론");
+  const [userRequest, setUserRequest] = useState("");
 
   const runRegenerateSlide = async () => {
-    if (!projectId || !slideId) return;
-    const req = { project_id: projectId, slide_id: slideId, force, tone };
+    if (!projectId || !slideTitle) return;
+    const req = { project_id: projectId, slide_title: slideTitle, user_request: userRequest };
     setActionLoading("regenerateSlide", req);
     try {
       const res = await apiClient.regenerateSlide(baseUrl, {
         project_id: projectId,
-        slide_id: slideId,
-        force,
+        slide_title: slideTitle,
+        user_request: userRequest || undefined,
       });
       setRegenerateSlideResult(res);
       setActionSuccess("regenerateSlide", res as unknown as Record<string, unknown>);
@@ -39,12 +38,11 @@ export function RegenerationPanel() {
 
   const runRegenerateNotes = async () => {
     if (!projectId) return;
-    const req = { project_id: projectId, slide_id: slideId || undefined, tone };
+    const req = { project_id: projectId };
     setActionLoading("regenerateNotes", req);
     try {
       const res = await apiClient.regenerateNotes(baseUrl, {
         project_id: projectId,
-        slide_id: slideId || undefined,
       });
       setRegenerateNotesResult(res);
       setActionSuccess("regenerateNotes", res as unknown as Record<string, unknown>);
@@ -61,20 +59,16 @@ export function RegenerationPanel() {
       <div className="mt-3 space-y-2">
         <input
           className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          placeholder="slide_id"
-          value={slideId}
-          onChange={(e) => setSlideId(e.target.value)}
+          placeholder="slide_title"
+          value={slideTitle}
+          onChange={(e) => setSlideTitle(e.target.value)}
         />
         <input
           className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          placeholder="tone"
-          value={tone}
-          onChange={(e) => setTone(e.target.value)}
+          placeholder="user request (optional)"
+          value={userRequest}
+          onChange={(e) => setUserRequest(e.target.value)}
         />
-        <label className="flex items-center gap-2 text-sm text-zinc-700">
-          <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
-          force
-        </label>
       </div>
 
       <div className="mt-2 text-xs text-zinc-500">Current project_id: {projectId || "(none)"}</div>
@@ -82,7 +76,7 @@ export function RegenerationPanel() {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button
           className="rounded-md border border-zinc-300 px-3 py-2 text-sm disabled:opacity-50"
-          disabled={!projectId || !slideId || actionStatus.regenerateSlide === "loading"}
+          disabled={!projectId || !slideTitle || actionStatus.regenerateSlide === "loading"}
           onClick={runRegenerateSlide}
         >
           {actionStatus.regenerateSlide === "loading" ? "Running..." : "Regenerate Slide"}
@@ -98,4 +92,3 @@ export function RegenerationPanel() {
     </section>
   );
 }
-

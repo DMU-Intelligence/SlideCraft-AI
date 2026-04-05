@@ -79,7 +79,7 @@ export function GenerationPanel() {
     try {
       const res = await apiClient.generateAll(baseUrl, { project_id: projectId, max_slides: maxSlides });
       setGenerateAllResult(res);
-      setOutlineResult({ project_id: res.project_id, outline: res.outline, summary: res.summary });
+      setOutlineResult({ project_id: res.project_id, outline: res.outline });
       setSlidesResult({ project_id: res.project_id, slides: res.slides });
       setNotesResult({ project_id: res.project_id, notes: res.notes });
       setActionSuccess("generateAll", res as unknown as Record<string, unknown>);
@@ -159,4 +159,3 @@ export function GenerationPanel() {
     </section>
   );
 }
-

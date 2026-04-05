@@ -6,21 +6,11 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
-export type ApiRecord = Record<string, unknown>;
-
-export interface ParsedChunk {
-  chunk_id: string;
-  text: string;
-  heading?: string | null;
-  start_char: number;
-  end_char: number;
-}
-
 export interface IngestDocumentResponse {
-  project_id: string;
-  raw_text: string;
-  chunks: ParsedChunk[];
-  summary: string;
+  project_id: number;
+  title: string;
+  language: string;
+  content: string;
   metadata?: {
     source_filename?: string | null;
     file_type?: string | null;
@@ -30,94 +20,146 @@ export interface IngestDocumentResponse {
   stats?: Record<string, unknown>;
 }
 
-export interface PresentationOutlineItem {
-  slide_number: number;
-  title: string;
+export interface OutlineItem {
+  id: string;
+  role: string;
   goal: string;
+  key_points: string[];
+  tone: string;
+  description: string;
+  page_size: number;
+  preferred_variant?: string | null;
 }
 
-export interface PresentationOutline {
-  deck_title: string;
-  presentation_objective: string;
-  slide_outline: PresentationOutlineItem[];
+export interface TextBoxElement {
+  type: "text_box";
+  text: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  font_name: string;
+  font_size: number;
+  font_bold: boolean;
+  font_color: string;
+  align: "left" | "center" | "right";
 }
 
-export interface Slide {
-  slide_id: string;
+export interface ShapeElement {
+  type: "shape";
+  shape_type: "rectangle";
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  fill_color: string;
+}
+
+export interface BulletListElement {
+  type: "bullet_list";
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  items: string[];
+  bullet_char: string;
+  bullet_color: string;
+  font_name: string;
+  font_size: number;
+  font_color: string;
+}
+
+export type SlideElement = TextBoxElement | ShapeElement | BulletListElement;
+
+export interface PageLayout {
+  background: string;
+  elements: SlideElement[];
+  slots: Record<string, JsonValue>;
+}
+
+export interface SlideContent {
   title: string;
-  goal: string;
-  bullets: string[];
-  source_chunk_ids: string[];
+  theme: "clean_light" | "bold_dark" | "editorial";
+  slide_variant:
+    | "title_page"
+    | "content_box_list"
+    | "content_two_panel"
+    | "content_sidebar"
+    | "content_split_band"
+    | "content_compact"
+    | "closing_page"
+    | "title"
+    | "section"
+    | "summary"
+    | "two_column";
+  pages: PageLayout[];
 }
 
-export interface SlideNotes {
-  slide_id: string;
-  notes: string;
+export interface SlideEvaluation {
+  passed: boolean;
+  score: number;
+  checklist: string[];
+  issues: string[];
+  feedback: string;
 }
 
 export interface GenerateOutlineRequest {
-  project_id: string;
+  project_id: number | string;
 }
 
 export interface GenerateOutlineResponse {
-  project_id: string;
-  outline: PresentationOutline;
-  summary: string;
+  project_id: number;
+  outline: Record<string, OutlineItem>;
 }
 
 export interface GenerateSlidesRequest {
-  project_id: string;
-  max_slides: number;
+  project_id: number | string;
+  max_slides?: number;
 }
 
 export interface GenerateSlidesResponse {
-  project_id: string;
-  slides: Slide[];
+  project_id: number;
+  slides: SlideContent[];
 }
 
 export interface GenerateNotesRequest {
-  project_id: string;
+  project_id: number | string;
 }
 
 export interface GenerateNotesResponse {
-  project_id: string;
-  notes: SlideNotes[];
+  project_id: number;
+  notes: string;
 }
 
 export interface GenerateAllRequest {
-  project_id: string;
-  max_slides: number;
+  project_id: number | string;
+  max_slides?: number;
 }
 
 export interface GenerateAllResponse {
-  project_id: string;
-  outline: PresentationOutline;
-  slides: Slide[];
-  notes: SlideNotes[];
-  summary: string;
+  project_id: number;
+  outline: Record<string, OutlineItem>;
+  slides: SlideContent[];
+  notes: string;
   stats?: Record<string, unknown>;
 }
 
 export interface RegenerateSlideRequest {
-  project_id: string;
-  slide_id: string;
-  force: boolean;
-  user_edited_slide_ids?: string[];
+  project_id: number | string;
+  slide_title: string;
+  user_request?: string;
 }
 
 export interface RegenerateSlideResponse {
-  project_id: string;
-  slide: Slide;
+  project_id: number;
+  slide: SlideContent;
 }
 
 export interface RegenerateNotesRequest {
-  project_id: string;
-  slide_id?: string;
-  slide_ids?: string[];
+  project_id: number | string;
 }
 
 export interface RegenerateNotesResponse {
-  project_id: string;
-  notes: SlideNotes[];
+  project_id: number;
+  notes: string;
 }
-

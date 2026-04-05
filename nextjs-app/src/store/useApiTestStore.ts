@@ -33,9 +33,19 @@ type LogItem = {
   message: string;
 };
 
+function makeLogItem(action: ActionKey, status: LogItem["status"], message: string): LogItem {
+  return {
+    id: `${Date.now()}_${Math.random()}`,
+    at: new Date().toISOString(),
+    action,
+    status,
+    message,
+  };
+}
+
 interface ApiTestState {
   backendBaseUrl: string;
-  currentProjectId: string;
+  currentProjectId: string | number;
 
   ingestResult: IngestDocumentResponse | null;
   outlineResult: GenerateOutlineResponse | null;
@@ -52,7 +62,7 @@ interface ApiTestState {
   actionStatus: Record<ActionKey, "idle" | "loading" | "success" | "error">;
 
   setBackendBaseUrl: (url: string) => void;
-  setCurrentProjectId: (id: string) => void;
+  setCurrentProjectId: (id: string | number) => void;
 
   setActionLoading: (action: ActionKey, request: RequestState) => void;
   setActionSuccess: (action: ActionKey, response: ResponseState) => void;
@@ -105,13 +115,7 @@ export const useApiTestStore = create<ApiTestState>()(
           latestRequest: request,
           latestError: null,
           logs: [
-            {
-              id: `${Date.now()}_${Math.random()}`,
-              at: new Date().toISOString(),
-              action,
-              status: "loading",
-              message: `${action} started`,
-            },
+            makeLogItem(action, "loading", `${action} started`),
             ...state.logs,
           ].slice(0, 100),
           actionStatus: { ...state.actionStatus, [action]: "loading" },
@@ -121,13 +125,7 @@ export const useApiTestStore = create<ApiTestState>()(
           latestResponse: response,
           latestError: null,
           logs: [
-            {
-              id: `${Date.now()}_${Math.random()}`,
-              at: new Date().toISOString(),
-              action,
-              status: "success",
-              message: `${action} succeeded`,
-            },
+            makeLogItem(action, "success", `${action} succeeded`),
             ...state.logs,
           ].slice(0, 100),
           actionStatus: { ...state.actionStatus, [action]: "success" },
@@ -136,13 +134,7 @@ export const useApiTestStore = create<ApiTestState>()(
         set((state) => ({
           latestError: error,
           logs: [
-            {
-              id: `${Date.now()}_${Math.random()}`,
-              at: new Date().toISOString(),
-              action,
-              status: "error",
-              message: `${action} failed`,
-            },
+            makeLogItem(action, "error", `${action} failed`),
             ...state.logs,
           ].slice(0, 100),
           actionStatus: { ...state.actionStatus, [action]: "error" },

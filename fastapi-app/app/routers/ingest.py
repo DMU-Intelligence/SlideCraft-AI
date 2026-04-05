@@ -74,6 +74,9 @@ async def ingest_document(
         metadata={
             "source_filename": original_filename,
             "source_document_metadata": parsed_doc.metadata,
+            "presentation_goal": f"문서 '{resolved_title}'의 핵심 내용을 청중이 빠르게 이해하도록 구조화한다.",
+            "target_audience": "해당 문서를 읽지 않았거나 배경지식이 많지 않을 수 있는 일반 청중",
+            "slide_evaluations": {},
         },
     )
     await state_repo.upsert(state)
