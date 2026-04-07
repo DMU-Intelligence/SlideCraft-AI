@@ -24,6 +24,31 @@ async function parseResponse(res: Response): Promise<unknown> {
   }
 }
 
+export interface ExportPptxInput {
+  projectId: number;
+  filename?: string;
+}
+
+export async function exportPptx(baseUrl: string, input: ExportPptxInput): Promise<Blob> {
+  const res = await fetch(`${baseUrl}/export/pptx`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      project_id: input.projectId,
+      ...(input.filename ? { filename: input.filename } : {}),
+    }),
+  });
+  if (!res.ok) {
+    const payload = await parseResponse(res);
+    throw {
+      status: res.status,
+      statusText: res.statusText,
+      payload,
+    };
+  }
+  return res.blob();
+}
+
 async function requestJson<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",

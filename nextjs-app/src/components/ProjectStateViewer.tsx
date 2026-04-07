@@ -11,48 +11,53 @@ export function ProjectStateViewer() {
   const notes = useApiTestStore((state) => state.notesResult);
   const generateAll = useApiTestStore((state) => state.generateAllResult);
   const regenSlide = useApiTestStore((state) => state.regenerateSlideResult);
+  const regenNotes = useApiTestStore((state) => state.regenerateNotesResult);
 
   const effectiveOutline = generateAll?.outline ?? outline?.outline ?? {};
   const effectiveSlides = generateAll?.slides ?? slides?.slides ?? (regenSlide?.slide ? [regenSlide.slide] : []);
-  const effectiveNotes = generateAll?.notes ?? notes?.notes ?? "";
+  const effectiveNotes =
+    (generateAll?.notes != null ? generateAll.notes : null) ??
+    (notes?.notes != null ? notes.notes : null) ??
+    regenNotes?.notes ??
+    "";
   const outlineTitles = Object.keys(effectiveOutline);
   const firstSlide = effectiveSlides[0];
   const firstPage = firstSlide?.pages?.[0];
   const slotKeys = firstPage?.slots ? Object.keys(firstPage.slots) : [];
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">State Viewer</h2>
-      <div className="mt-3 space-y-2 text-sm text-zinc-800">
+    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-lg md:p-6">
+      <h2 className="text-sm font-semibold text-gray-900">프로젝트 상태</h2>
+      <div className="mt-4 space-y-2 text-sm text-gray-800">
         <div>
-          <span className="font-semibold">project_id:</span> {projectId || "(none)"}
+          <span className="font-semibold text-gray-900">project_id:</span> {projectId || "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">title:</span> {ingest?.title || "(none)"}
+          <span className="font-semibold text-gray-900">title:</span> {ingest?.title || "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">content preview:</span>{" "}
-          {truncate(ingest?.content ?? "", 200) || "(empty)"}
+          <span className="font-semibold text-gray-900">content 미리보기:</span>{" "}
+          {truncate(ingest?.content ?? "", 200) || "(비어 있음)"}
         </div>
         <div>
-          <span className="font-semibold">outline titles:</span>{" "}
-          {outlineTitles.length ? outlineTitles.join(" | ") : "(none)"}
+          <span className="font-semibold text-gray-900">아웃라인:</span>{" "}
+          {outlineTitles.length ? outlineTitles.join(" · ") : "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">slides:</span> {effectiveSlides.length}
+          <span className="font-semibold text-gray-900">슬라이드 수:</span> {effectiveSlides.length}
         </div>
         <div>
-          <span className="font-semibold">design theme:</span> {firstSlide?.theme || "(none)"}
+          <span className="font-semibold text-gray-900">테마:</span> {firstSlide?.theme || "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">slide variant:</span> {firstSlide?.slide_variant || "(none)"}
+          <span className="font-semibold text-gray-900">variant:</span> {firstSlide?.slide_variant || "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">slot keys:</span> {slotKeys.length ? slotKeys.join(" | ") : "(none)"}
+          <span className="font-semibold text-gray-900">슬롯 키:</span> {slotKeys.length ? slotKeys.join(" · ") : "(없음)"}
         </div>
         <div>
-          <span className="font-semibold">notes preview:</span>{" "}
-          {truncate(typeof effectiveNotes === "string" ? effectiveNotes : "", 120) || "(empty)"}
+          <span className="font-semibold text-gray-900">노트 미리보기:</span>{" "}
+          {truncate(typeof effectiveNotes === "string" ? effectiveNotes : "", 120) || "(비어 있음)"}
         </div>
       </div>
     </section>

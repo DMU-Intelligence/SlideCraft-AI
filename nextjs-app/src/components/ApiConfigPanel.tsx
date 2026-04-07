@@ -9,28 +9,26 @@ export function ApiConfigPanel() {
   const [localUrl, setLocalUrl] = useState(baseUrl);
 
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-semibold text-zinc-900">API Base URL Config</h2>
-      <p className="mt-1 text-xs text-zinc-600">
-        FastAPI base URL for local development requests.
-      </p>
-      <div className="mt-3 flex gap-2">
+    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-lg md:p-6">
+      <h2 className="text-sm font-semibold text-gray-900">API 서버 주소</h2>
+      <p className="mt-1 text-xs text-gray-600">로컬 FastAPI 베이스 URL (예: http://127.0.0.1:8000)</p>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-3">
         <input
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           value={localUrl}
           onChange={(e) => setLocalUrl(e.target.value)}
           placeholder="http://127.0.0.1:8000"
         />
         <button
-          className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          type="button"
+          className="shrink-0 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-all hover:from-blue-700 hover:to-indigo-700 disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300"
           onClick={() => setBaseUrl(localUrl.trim())}
           disabled={!localUrl.trim()}
         >
-          Save
+          저장
         </button>
       </div>
-      <div className="mt-2 text-xs text-zinc-500">Current: {baseUrl}</div>
+      <p className="mt-2 text-xs text-gray-500">현재: {baseUrl}</p>
     </section>
   );
 }
-
