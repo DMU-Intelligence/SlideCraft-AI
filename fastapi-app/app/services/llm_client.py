@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from abc import ABC, abstractmethod
 from typing import Any
@@ -176,23 +177,28 @@ Context:
 - Target audience: {target_audience}
 
 Task:
-- Create slide-level outline entries, not section-only headings.
-- Each entry value must include:
+- First create a concise presentation title suitable for the audience and source document.
+- Then create slide-level outline entries, not section-only headings.
+- Each outline entry value must include:
   id, role, goal, key_points, tone, description, page_size
 - Use this JSON shape:
 {{
-  "Slide Title": {{
-    "id": "slide_01",
-    "role": "problem_intro|detail|solution|summary|comparison|analysis",
-    "goal": "one sentence",
-    "key_points": ["...", "..."],
-    "tone": "informative|analytical|persuasive|closing|hook",
-    "description": "speaker-facing design description",
-    "page_size": 1
+  "title": "presentation title",
+  "outline": {{
+    "Slide Title": {{
+      "id": "slide_01",
+      "role": "problem_intro|detail|solution|summary|comparison|analysis",
+      "goal": "one sentence",
+      "key_points": ["...", "..."],
+      "tone": "informative|analytical|persuasive|closing|hook",
+      "description": "speaker-facing design description",
+      "page_size": 1
+    }}
   }}
 }}
 
 Constraints:
+- Make the presentation title specific and natural, not just the raw filename.
 - Keep the flow coherent for a general audience.
 - Keep page_size between 1 and 2.
 - Keep key_points concise and grounded in the source document.
@@ -226,10 +232,10 @@ Return valid JSON only with this shape:
         {{
           "type": "text_box",
           "text": "string",
-          "left": 1.0,
-          "top": 0.5,
-          "width": 11.8,
-          "height": 1.0,
+          "x": 1.0,
+          "y": 0.5,
+          "w": 11.8,
+          "h": 1.0,
           "font_name": "Malgun Gothic",
           "font_size": 28,
           "font_bold": false,
@@ -238,10 +244,10 @@ Return valid JSON only with this shape:
         }},
         {{
           "type": "bullet_list",
-          "left": 1.0,
-          "top": 1.5,
-          "width": 11.8,
-          "height": 1.8,
+          "x": 1.0,
+          "y": 1.5,
+          "w": 11.8,
+          "h": 1.8,
           "items": ["...", "..."],
           "bullet_char": "-",
           "bullet_color": "#2563EB",
@@ -267,6 +273,7 @@ Rules:
 - This is a fill-in task based on the contract above, not a free rewrite.
 - Prefer `slots` as the primary representation.
 - You may leave `elements` empty when `slots` is sufficient.
+- If you provide `elements`, use `x`, `y`, `w`, `h` for coordinates.
 - Pick one `slide_variant` and keep the slide faithful to that variant.
 - If the slide is the opening slide and speaker/team info is present in the contract, include it in `people`.
 - Reflect the slide goal and key_points directly.
@@ -403,7 +410,10 @@ class MockLLMClient(LLMClient):
                 "description": f"{slide_title}에 맞는 핵심 내용을 일반 청중이 이해하기 쉽게 정리한다.",
                 "page_size": 1,
             }
-        return result
+        return {
+            "title": str(title).strip() or "Presentation",
+            "outline": result,
+        }
 
     async def generate_slide(
         self,
@@ -439,10 +449,10 @@ class MockLLMClient(LLMClient):
                 {
                     "type": "text_box",
                     "text": display_title,
-                    "left": 1.0,
-                    "top": 0.5,
-                    "width": 11.8,
-                    "height": 1.0,
+                    "x": 1.0,
+                    "y": 0.5,
+                    "w": 11.8,
+                    "h": 1.0,
                     "font_name": "Malgun Gothic",
                     "font_size": 28,
                     "font_bold": False,
@@ -451,10 +461,10 @@ class MockLLMClient(LLMClient):
                 },
                 {
                     "type": "bullet_list",
-                    "left": 1.0,
-                    "top": 1.5,
-                    "width": 11.8,
-                    "height": 1.5,
+                    "x": 1.0,
+                    "y": 1.5,
+                    "w": 11.8,
+                    "h": 1.5,
                     "items": bullets,
                     "bullet_char": "-",
                     "bullet_color": "#2563EB",
@@ -465,10 +475,10 @@ class MockLLMClient(LLMClient):
                 {
                     "type": "text_box",
                     "text": slide_info["description"],
-                    "left": 1.0,
-                    "top": 3.0,
-                    "width": 11.8,
-                    "height": 1.0,
+                    "x": 1.0,
+                    "y": 3.0,
+                    "w": 11.8,
+                    "h": 1.0,
                     "font_name": "Malgun Gothic",
                     "font_size": 16,
                     "font_bold": False,
@@ -745,11 +755,64 @@ class GeminiLLMClient(OpenAICompatibleLLMClient):
         return response.text.strip()
 
 
+class GeminiCLIClient(OpenAICompatibleLLMClient):
+    """
+    gemini-cli-server.py (CLI 브릿지 서버)에 HTTP로 프롬프트를 전달하여
+    gemini CLI 응답을 받습니다.
+
+    환경 변수:
+        GEMINI_CLI_SERVER_URL: 브릿지 서버 주소 (기본값: http://localhost:5001)
+    """
+
+    async def _call(self, prompt: str) -> str:
+        url = os.getenv("GEMINI_CLI_SERVER_URL", "http://localhost:5001")
+        full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
+
+        async with httpx.AsyncClient(timeout=300) as client:
+            response = await client.post(
+                f"{url}/generate",
+                json={"prompt": full_prompt},
+            )
+            response.raise_for_status()
+            data = response.json()
+        return data["response"]
+
+
+class GptCLIClient(OpenAICompatibleLLMClient):
+    """
+    gemini-cli-server.py (CLI 브릿지 서버)에 HTTP로 프롬프트를 전달하여
+    GPT CLI 응답을 받습니다.
+
+    환경 변수:
+        GPT_CLI_SERVER_URL: 브릿지 서버 주소 (기본값: http://localhost:5001)
+    """
+
+    async def _call(self, prompt: str) -> str:
+        url = os.getenv("GPT_CLI_SERVER_URL", "http://localhost:5001")
+        full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
+
+        async with httpx.AsyncClient(timeout=300) as client:
+            response = await client.post(
+                f"{url}/generate",
+                json={"prompt": full_prompt},
+            )
+            response.raise_for_status()
+            data = response.json()
+        return data["response"]
+
+
 def create_llm_client(settings: Settings) -> LLMClient:
-    if settings.llm_mode == "mock":
+    mode = settings.llm_mode.lower().strip()
+
+    if mode in ("mock", "mock-cli"):
         return MockLLMClient()
-    if settings.llm_mode == "openai":
+    if mode == "openai":
         return OpenAICompatibleLLMClient(settings)
-    if settings.llm_mode == "gemini":
+    if mode == "gemini":
         return GeminiLLMClient(settings)
+    if mode == "gemini-cli":
+        return GeminiCLIClient(settings)
+    if mode in ("gpt-cli", "openai-cli"):
+        return GptCLIClient(settings)
     raise ValueError(f"Unsupported LLM_MODE: {settings.llm_mode}")
+

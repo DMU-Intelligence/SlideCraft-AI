@@ -26,11 +26,17 @@ async def generate_outline(req: GenerateOutlineRequest, request: Request) -> Gen
     state: ProjectState | None = await repo.get(req.project_id)
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
-    outline = await outline_generator.generate_outline(state)
-    state.outline = outline
+    outline_result = await outline_generator.generate_outline(state)
+    state.title = outline_result.title
+    state.outline = outline_result.outline
+    state.metadata["presentation_goal"] = f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다."
     state.touch()
     await repo.upsert(state)
-    return GenerateOutlineResponse(project_id=state.project_id, outline=outline)
+    return GenerateOutlineResponse(
+        project_id=state.project_id,
+        title=state.title,
+        outline=state.outline,
+    )
 
 
 @router.post("/generate/slides", response_model=GenerateSlidesResponse)
@@ -86,8 +92,10 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
 
-    outline = await outline_generator.generate_outline(state)
-    state.outline = outline
+    outline_result = await outline_generator.generate_outline(state)
+    state.title = outline_result.title
+    state.outline = outline_result.outline
+    state.metadata["presentation_goal"] = f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다."
 
     slides = await slide_generator.generate_slides(state)
     state.slides = slides
@@ -99,7 +107,8 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
     await repo.upsert(state)
     return GenerateAllResponse(
         project_id=state.project_id,
-        outline=outline,
+        title=state.title,
+        outline=state.outline,
         slides=slides,
         notes=notes,
         stats={},

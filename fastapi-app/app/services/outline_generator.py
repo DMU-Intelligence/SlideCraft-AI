@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..models.project_state import ProjectState
-from ..schemas.generate import OutlineItem
+from ..schemas.generate import OutlineGenerationResult, OutlineItem
 from .llm_client import LLMClient
 
 
@@ -18,7 +18,7 @@ class OutlineGenerator:
     def __init__(self, llm_client: LLMClient) -> None:
         self._llm_client = llm_client
 
-    async def generate_outline(self, state: ProjectState) -> dict[str, OutlineItem]:
+    async def generate_outline(self, state: ProjectState) -> OutlineGenerationResult:
         presentation_goal = state.metadata.get(
             "presentation_goal",
             f"문서 '{state.title}'의 핵심 내용을 청중이 빠르게 이해하도록 구조화한다.",
@@ -34,8 +34,10 @@ class OutlineGenerator:
             presentation_goal=presentation_goal,
             target_audience=target_audience,
         )
+        generated_title = str(raw.get("title") or state.title).strip() or state.title
+        outline_payload = raw.get("outline", {})
         outline: dict[str, OutlineItem] = {}
-        for title, item in raw.items():
+        for title, item in outline_payload.items():
             outline_item = OutlineItem.model_validate(item)
             if not outline_item.preferred_variant:
                 outline_item.preferred_variant = _preferred_variant_for_role(
@@ -43,4 +45,4 @@ class OutlineGenerator:
                     outline_item.key_points,
                 )
             outline[title] = outline_item
-        return outline
+        return OutlineGenerationResult(title=generated_title, outline=outline)

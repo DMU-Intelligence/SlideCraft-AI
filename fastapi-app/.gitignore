@@ -10,5 +10,11 @@ __pycache__/
 Thumbs.db
 .env
 
+/uploads
 /uploads/**
+/data
 /data/**
+/node_modules
+/node_modules/**
+*pptx
+*.pdf

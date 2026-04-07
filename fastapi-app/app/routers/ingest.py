@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 
@@ -18,8 +18,6 @@ router = APIRouter(tags=["ingest"])
 async def ingest_document(
     file: UploadFile,
     request: Request,
-    project_id: Optional[int] = Form(default=None),
-    title: Optional[str] = Form(default=None),
     language: str = Form(default="ko"),
 ) -> IngestDocumentResponse:
     """
@@ -40,9 +38,7 @@ async def ingest_document(
     original_filename = file.filename or "upload"
     safe_filename = sanitize_filename(original_filename)
 
-    resolved_project_id = project_id
-    if resolved_project_id is None:
-        resolved_project_id = await state_repo.next_id()
+    resolved_project_id = await state_repo.next_id()
 
     dest_dir = Path(settings.upload_dir) / str(resolved_project_id)
     os.makedirs(dest_dir, exist_ok=True)
@@ -51,7 +47,7 @@ async def ingest_document(
     await save_upload_file(file, str(dest_path))
 
     # ── 제목 결정 ────────────────────────────────────────────────────────────
-    resolved_title = title or os.path.splitext(safe_filename)[0] or "Untitled"
+    resolved_title = os.path.splitext(safe_filename)[0] or "Untitled"
 
     # ── 문서 파싱 → AI 텍스트 정리 ─────────────────────────────────────────────
     try:

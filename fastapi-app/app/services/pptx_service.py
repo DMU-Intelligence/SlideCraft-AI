@@ -66,10 +66,10 @@ _THEMES: dict[str, dict[str, str | int]] = {
 
 
 def _hex_to_rgb(hex_color: str) -> RGBColor:
-    h = hex_color.lstrip("#")
-    if len(h) != 6:
-        h = "FFFFFF"
-    return RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    value = hex_color.lstrip("#")
+    if len(value) != 6:
+        value = "FFFFFF"
+    return RGBColor(int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
 
 
 def _theme_for(name: str) -> dict[str, str | int]:
@@ -136,7 +136,7 @@ def _add_panel(
 
 
 def _add_title_box(slide: Any, title: str, theme: dict[str, str | int], *, top: float = 0.72) -> None:
-    _add_panel(slide, left=0.75, top=top, width=4.1, height=0.62, fill_color=str(theme["accent"]), radius=False)
+    _add_panel(slide, left=0.75, top=top, width=4.1, height=0.62, fill_color=str(theme["accent"]))
     _add_text_box(
         slide,
         text=title,
@@ -154,10 +154,10 @@ def _render_text_box(slide: Any, elem: TextBoxElement) -> None:
     _add_text_box(
         slide,
         text=elem.text,
-        left=elem.left,
-        top=elem.top,
-        width=elem.width,
-        height=elem.height,
+        left=elem.x,
+        top=elem.y,
+        width=elem.w,
+        height=elem.h,
         font_size=elem.font_size,
         font_color=elem.font_color,
         bold=elem.font_bold,
@@ -169,21 +169,21 @@ def _render_text_box(slide: Any, elem: TextBoxElement) -> None:
 def _render_shape(slide: Any, elem: ShapeElement) -> None:
     _add_panel(
         slide,
-        left=elem.left,
-        top=elem.top,
-        width=elem.width,
-        height=elem.height,
+        left=elem.x,
+        top=elem.y,
+        width=elem.w,
+        height=elem.h,
         fill_color=elem.fill_color,
-        radius=False,
     )
 
 
 def _render_bullet_list(slide: Any, elem: BulletListElement) -> None:
-    text_box = slide.shapes.add_textbox(Inches(elem.left), Inches(elem.top), Inches(elem.width), Inches(elem.height))
+    text_box = slide.shapes.add_textbox(Inches(elem.x), Inches(elem.y), Inches(elem.w), Inches(elem.h))
     frame = text_box.text_frame
     frame.word_wrap = True
     bullet_rgb = _hex_to_rgb(elem.bullet_color)
     font_rgb = _hex_to_rgb(elem.font_color)
+    bullet_prefix = f"{elem.bullet_char or '-'} "
 
     for index, item_text in enumerate(elem.items):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
@@ -191,7 +191,7 @@ def _render_bullet_list(slide: Any, elem: BulletListElement) -> None:
         paragraph.space_after = Pt(3)
 
         bullet = paragraph.add_run()
-        bullet.text = "•  "
+        bullet.text = bullet_prefix
         bullet.font.name = elem.font_name
         bullet.font.size = Pt(elem.font_size)
         bullet.font.color.rgb = bullet_rgb
@@ -234,12 +234,12 @@ def _render_bullets(
     _render_bullet_list(
         slide,
         BulletListElement(
-            left=left,
-            top=top,
-            width=width,
-            height=height,
+            x=left,
+            y=top,
+            w=width,
+            h=height,
             items=items[:5],
-            bullet_char="•",
+            bullet_char="-",
             bullet_color=str(theme["accent"]),
             font_color=str(theme["text"]),
             font_size=int(theme["body_size"]),
@@ -478,7 +478,7 @@ def _render_closing_page(slide: Any, slots: dict[str, Any], theme: dict[str, str
     _add_panel(slide, left=0.9, top=1.0, width=11.5, height=0.2, fill_color=str(theme["accent"]))
     _add_text_box(
         slide,
-        text=str(slots.get("headline", "감사합니다")),
+        text=str(slots.get("headline", "Thank you")),
         left=1.35,
         top=2.0,
         width=10.4,
@@ -557,7 +557,7 @@ class PptxGenerator:
             for page in slide_content.pages:
                 _build_page(prs, slide_content, page)
 
-        buf = io.BytesIO()
-        prs.save(buf)
-        buf.seek(0)
-        return buf.read()
+        buffer = io.BytesIO()
+        prs.save(buffer)
+        buffer.seek(0)
+        return buffer.read()
