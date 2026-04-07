@@ -6,14 +6,6 @@ from ..models.project_state import ProjectState
 from ..schemas.generate import PageLayout, SlideContent, SlideEvaluation
 from .llm_client import LLMClient
 
-_CONTENT_VARIANTS = [
-    "content_box_list",
-    "content_two_panel",
-    "content_sidebar",
-    "content_split_band",
-    "content_compact",
-]
-
 
 def _summarize_slide_for_context(slide: SlideContent | None) -> str:
     if slide is None:
@@ -41,16 +33,12 @@ def _pick_theme(role: str, tone: str) -> str:
     return "clean_light"
 
 
-def _pick_variant(index: int) -> str:
-    return _CONTENT_VARIANTS[index % len(_CONTENT_VARIANTS)]
-
-
 def _extract_people_info(text: str) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     candidates: list[str] = []
     patterns = [
-        re.compile(r"(발표자|작성자|팀원|팀명|조원|소속|이름)\s*[:：]\s*(.+)", re.IGNORECASE),
-        re.compile(r"(presented by|presenter|team|author|authors|members|by)\s*[:：]?\s*(.+)", re.IGNORECASE),
+        re.compile(r"(presented by|presenter|team|author|authors|members|by)\s*[:\-]?\s*(.+)", re.IGNORECASE),
+        re.compile(r"(name|speaker|speakers)\s*[:\-]?\s*(.+)", re.IGNORECASE),
     ]
 
     for line in lines[:40]:
@@ -64,7 +52,8 @@ def _extract_people_info(text: str) -> list[str]:
     if not candidates:
         short_lines = [line for line in lines[:12] if 3 <= len(line) <= 40]
         for line in short_lines:
-            if any(token in line.lower() for token in ("대학교", "학과", "team", "presenter", "발표", "작성")):
+            lowered = line.lower()
+            if any(token in lowered for token in ("team", "presenter", "speaker", "author", "member", "name")):
                 candidates.append(line)
 
     deduped: list[str] = []
@@ -75,97 +64,138 @@ def _extract_people_info(text: str) -> list[str]:
     return deduped[:4]
 
 
-def _ensure_slot_lists(page: PageLayout, slide_title: str) -> None:
-    slots = page.slots
-    slots.setdefault("headline", slide_title)
-    bullets = slots.get("bullets")
-    left_points = slots.get("left_points")
-    right_points = slots.get("right_points")
-
-    if not isinstance(bullets, list):
-        bullets = []
-    if not isinstance(left_points, list):
-        left_points = []
-    if not isinstance(right_points, list):
-        right_points = []
-
-    if not bullets and (left_points or right_points):
-        slots["bullets"] = [*left_points, *right_points]
-    elif bullets and not (left_points or right_points):
-        midpoint = max(1, (len(bullets) + 1) // 2)
-        slots["left_points"] = bullets[:midpoint]
-        slots["right_points"] = bullets[midpoint:]
-    else:
-        slots["left_points"] = left_points
-        slots["right_points"] = right_points
-        slots["bullets"] = bullets
-
-
-def _apply_title_page(slide: SlideContent, people: list[str]) -> SlideContent:
-    if not slide.pages:
-        slide.pages = [PageLayout()]
-    page = slide.pages[0]
-    _ensure_slot_lists(page, slide.title)
-    page.slots["eyebrow"] = "Presentation"
-    page.slots["headline"] = slide.title
-    page.slots["people"] = people
-    page.slots["highlight"] = ""
-    slide.slide_variant = "title_page"
-    return slide
-
-
 def _build_title_slide(title: str, people: list[str]) -> SlideContent:
-    slide = SlideContent(
+    return SlideContent(
         title=title,
         theme="clean_light",
         slide_variant="title_page",
         pages=[
             PageLayout(
-                background="",
-                slots={
-                    "eyebrow": "Presentation",
-                    "headline": title,
-                    "body": "",
-                    "people": people,
-                    "highlight": "",
-                },
+                background="#F7F8FC",
+                elements=[
+                    {
+                        "type": "shape",
+                        "x": 0.7,
+                        "y": 0.7,
+                        "w": 0.18,
+                        "h": 5.9,
+                        "fill_color": "#2563EB",
+                    },
+                    {
+                        "type": "text_box",
+                        "text": "Presentation",
+                        "x": 1.1,
+                        "y": 1.0,
+                        "w": 3.4,
+                        "h": 0.35,
+                        "font_size": 13,
+                        "font_bold": True,
+                        "font_color": "#2563EB",
+                        "align": "left",
+                    },
+                    {
+                        "type": "text_box",
+                        "text": title,
+                        "x": 1.1,
+                        "y": 1.55,
+                        "w": 8.8,
+                        "h": 1.45,
+                        "font_size": 33,
+                        "font_bold": True,
+                        "font_color": "#0F172A",
+                        "align": "left",
+                    },
+                    {
+                        "type": "text_box",
+                        "text": "\n".join(people),
+                        "x": 9.2,
+                        "y": 5.8,
+                        "w": 3.0,
+                        "h": 0.65,
+                        "font_size": 10,
+                        "font_color": "#475569",
+                        "align": "right",
+                    },
+                ],
             )
         ],
     )
-    return _apply_title_page(slide, people)
-
-
-def _apply_content_variant(slide: SlideContent, variant: str) -> SlideContent:
-    slide.slide_variant = variant
-    for page in slide.pages:
-        _ensure_slot_lists(page, slide.title)
-        page.slots.setdefault("title_box_label", slide.title)
-    return slide
 
 
 def _build_closing_slide(title: str, theme: str, people: list[str]) -> SlideContent:
+    palette = {
+        "clean_light": {"bg": "#F7F8FC", "panel": "#FFFFFF", "accent": "#2563EB", "text": "#0F172A", "muted": "#475569"},
+        "bold_dark": {"bg": "#0F172A", "panel": "#162235", "accent": "#7AA2FF", "text": "#F8FAFC", "muted": "#CBD5E1"},
+        "editorial": {"bg": "#FFFDF8", "panel": "#F7F1E8", "accent": "#B45309", "text": "#292524", "muted": "#57534E"},
+    }.get(theme, {"bg": "#F7F8FC", "panel": "#FFFFFF", "accent": "#2563EB", "text": "#0F172A", "muted": "#475569"})
     return SlideContent(
         title=title,
         theme=theme,
         slide_variant="closing_page",
         pages=[
             PageLayout(
-                background="",
-                slots={
-                    "headline": title,
-                    "body": "발표를 들어주셔서 감사합니다.",
-                    "people": people,
-                },
+                background=str(palette["bg"]),
+                elements=[
+                    {
+                        "type": "shape",
+                        "x": 0.9,
+                        "y": 1.0,
+                        "w": 11.5,
+                        "h": 5.2,
+                        "fill_color": str(palette["panel"]),
+                    },
+                    {
+                        "type": "shape",
+                        "x": 0.9,
+                        "y": 1.0,
+                        "w": 11.5,
+                        "h": 0.2,
+                        "fill_color": str(palette["accent"]),
+                    },
+                    {
+                        "type": "text_box",
+                        "text": title,
+                        "x": 1.35,
+                        "y": 2.0,
+                        "w": 10.4,
+                        "h": 0.9,
+                        "font_size": 38,
+                        "font_bold": True,
+                        "font_color": str(palette["text"]),
+                        "align": "center",
+                    },
+                    {
+                        "type": "text_box",
+                        "text": "발표를 들어주셔서 감사합니다.",
+                        "x": 2.0,
+                        "y": 3.15,
+                        "w": 9.1,
+                        "h": 0.5,
+                        "font_size": 16,
+                        "font_color": str(palette["muted"]),
+                        "align": "center",
+                    },
+                    {
+                        "type": "text_box",
+                        "text": "\n".join(people),
+                        "x": 2.2,
+                        "y": 4.2,
+                        "w": 8.8,
+                        "h": 1.2,
+                        "font_size": 15,
+                        "font_color": str(palette["muted"]),
+                        "align": "center",
+                    },
+                ],
             )
         ],
     )
 
 
-def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object], *, index: int) -> dict[str, object]:
+def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
     role = str(slide_info.get("role", "")).strip().lower()
     tone = str(slide_info.get("tone", "")).strip().lower()
     raw_slide.setdefault("theme", _pick_theme(role, tone))
-    raw_slide["slide_variant"] = _pick_variant(index)
     return raw_slide
 
 
@@ -179,7 +209,7 @@ class SlideGenerator:
 
         presentation_goal = state.metadata.get(
             "presentation_goal",
-            f"문서 '{state.title}'의 핵심 내용을 청중이 빠르게 이해하도록 구조화한다.",
+            f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다.",
         )
         target_audience = state.metadata.get(
             "target_audience",
@@ -209,8 +239,7 @@ class SlideGenerator:
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
             )
-            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info, index=index))
-            slide = _apply_content_variant(slide, _pick_variant(index))
+            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info))
             slides.append(slide)
 
             raw_evaluation = await self._llm_client.evaluate_slide(

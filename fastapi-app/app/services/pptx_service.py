@@ -540,11 +540,11 @@ def _build_page(prs: Presentation, slide_content: SlideContent, page: PageLayout
     theme = _theme_for(slide_content.theme)
     _set_bg(slide, page.background or str(theme["background"]))
 
-    if page.slots:
-        _render_slots(slide, slide_content, page)
-    else:
+    if page.elements:
         for element in page.elements:
             _render_element(slide, element)
+    elif page.slots:
+        _render_slots(slide, slide_content, page)
 
 
 class PptxGenerator:

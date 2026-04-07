@@ -271,8 +271,8 @@ Current slide contract:
 
 Rules:
 - This is a fill-in task based on the contract above, not a free rewrite.
-- Prefer `slots` as the primary representation.
-- You may leave `elements` empty when `slots` is sufficient.
+- Prefer `elements` as the primary representation.
+- Use `slots` only as optional helper metadata.
 - If you provide `elements`, use `x`, `y`, `w`, `h` for coordinates.
 - Pick one `slide_variant` and keep the slide faithful to that variant.
 - If the slide is the opening slide and speaker/team info is present in the contract, include it in `people`.
