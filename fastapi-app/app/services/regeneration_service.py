@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..models.project_state import ProjectState
-from ..schemas.generate import OutlineItem, SlideContent, SlideEvaluation
+from ..schemas.generate import OutlineItem, SlideContent
 from .llm_client import LLMClient
 
 
@@ -111,18 +111,6 @@ class RegenerationService:
                 break
         else:
             state.slides.append(updated)
-
-        raw_evaluation = await self._llm_client.evaluate_slide(
-            slide_title=slide_title,
-            slide_info=slide_info,
-            slide_output=updated.model_dump(),
-            previous_slide_summary=previous_slide_summary,
-            next_slide_goal=next_slide_goal,
-            language=state.language,
-        )
-        slide_evaluations = dict(state.metadata.get("slide_evaluations", {}))
-        slide_evaluations[slide_title] = SlideEvaluation.model_validate(raw_evaluation).model_dump()
-        state.metadata["slide_evaluations"] = slide_evaluations
 
         state.touch()
         return updated

@@ -47,7 +47,12 @@ async def generate_slides(req: GenerateSlidesRequest, request: Request) -> Gener
     state: ProjectState | None = await repo.get(req.project_id)
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
-    slides = await slide_generator.generate_slides(state)
+    try:
+        slides = await slide_generator.generate_slides(state)
+    except ValueError as exc:
+        state.touch()
+        await repo.upsert(state)
+        raise HTTPException(status_code=400, detail=str(exc))
     state.slides = slides
     # Regenerate notes are independent; keep existing notes as-is.
     state.touch()
@@ -97,7 +102,12 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
     state.outline = outline_result.outline
     state.metadata["presentation_goal"] = f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다."
 
-    slides = await slide_generator.generate_slides(state)
+    try:
+        slides = await slide_generator.generate_slides(state)
+    except ValueError as exc:
+        state.touch()
+        await repo.upsert(state)
+        raise HTTPException(status_code=400, detail=str(exc))
     state.slides = slides
 
     notes = await notes_generator.generate_notes(state)

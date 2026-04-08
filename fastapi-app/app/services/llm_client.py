@@ -105,18 +105,6 @@ class LLMClient(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def evaluate_slide(
-        self,
-        slide_title: str,
-        slide_info: dict[str, Any],
-        slide_output: dict[str, Any],
-        previous_slide_summary: str,
-        next_slide_goal: str,
-        language: str,
-    ) -> dict[str, Any]:
-        raise NotImplementedError
-
-    @abstractmethod
     async def generate_notes(
         self,
         slides: list[dict[str, Any]],
@@ -286,33 +274,6 @@ Rules:
 
 Source document:
 {content}
-"""
-
-_EVALUATE_SLIDE_PROMPT = """
-You evaluate one generated slide against its contract.
-Return valid JSON only with this shape:
-{{
-  "passed": true,
-  "score": 5,
-  "checklist": [
-    "slide_info.goal achieved: yes",
-    "key_points reflected: yes",
-    "bullet count <= 5: yes",
-    "minimal duplication with previous slide: yes",
-    "clear for non-experts: yes",
-    "has transition to next slide: yes"
-  ],
-  "issues": [],
-  "feedback": "string"
-}}
-
-Language: {language}
-Previous slide summary: {previous_slide_summary}
-Next slide goal: {next_slide_goal}
-Slide contract:
-{slide_info_json}
-Generated slide:
-{slide_output_json}
 """
 
 _GENERATE_NOTES_PROMPT = """

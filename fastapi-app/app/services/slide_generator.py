@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 
 from ..models.project_state import ProjectState
-from ..schemas.generate import PageLayout, SlideContent, SlideEvaluation
+from ..schemas.generate import PageLayout, SlideContent
+from .json_validation import validate_outline_payload, validate_slides_payload
 from .llm_client import LLMClient
 
 
@@ -64,7 +65,7 @@ def _extract_people_info(text: str) -> list[str]:
     return deduped[:4]
 
 
-def _build_title_slide(title: str, people: list[str]) -> SlideContent:
+def _build_title_slide(title: str, people: list[str]) -> dict[str, object]:
     return SlideContent(
         title=title,
         theme="clean_light",
@@ -119,10 +120,10 @@ def _build_title_slide(title: str, people: list[str]) -> SlideContent:
                 ],
             )
         ],
-    )
+    ).model_dump()
 
 
-def _build_closing_slide(title: str, theme: str, people: list[str]) -> SlideContent:
+def _build_closing_slide(title: str, theme: str, people: list[str]) -> dict[str, object]:
     palette = {
         "clean_light": {"bg": "#F7F8FC", "panel": "#FFFFFF", "accent": "#2563EB", "text": "#0F172A", "muted": "#475569"},
         "bold_dark": {"bg": "#0F172A", "panel": "#162235", "accent": "#7AA2FF", "text": "#F8FAFC", "muted": "#CBD5E1"},
@@ -189,7 +190,7 @@ def _build_closing_slide(title: str, theme: str, people: list[str]) -> SlideCont
                 ],
             )
         ],
-    )
+    ).model_dump()
 
 
 def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
@@ -217,13 +218,18 @@ class SlideGenerator:
         )
         people = _extract_people_info(state.source_document_text or state.content)
 
+        outline_payload = {title: item.model_dump() for title, item in state.outline.items()}
+        outline_ok, outline_error = validate_outline_payload(outline_payload)
+        if not outline_ok:
+            raise ValueError(f"{outline_error} JSON이 잘못되었습니다.")
+
         titles = list(state.outline.keys())
-        slides: list[SlideContent] = [_build_title_slide(state.title, people)]
-        evaluations: dict[str, SlideEvaluation] = {}
+        raw_slides: list[dict[str, object]] = [_build_title_slide(state.title, people)]
 
         for index, title in enumerate(titles):
             item = state.outline[title]
-            previous_slide_summary = _summarize_slide_for_context(slides[-1] if slides else None)
+            previous_slide = SlideContent.model_validate(raw_slides[-1]) if raw_slides else None
+            previous_slide_summary = _summarize_slide_for_context(previous_slide)
             next_slide_goal = state.outline[titles[index + 1]].goal if index < len(titles) - 1 else ""
 
             slide_info = item.model_dump()
@@ -239,24 +245,16 @@ class SlideGenerator:
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
             )
-            slide = SlideContent.model_validate(_normalize_slide(raw_slide, slide_info))
-            slides.append(slide)
+            raw_slides.append(_normalize_slide(raw_slide, slide_info))
 
-            raw_evaluation = await self._llm_client.evaluate_slide(
-                slide_title=title,
-                slide_info=slide_info,
-                slide_output=slide.model_dump(),
-                previous_slide_summary=previous_slide_summary,
-                next_slide_goal=next_slide_goal,
-                language=state.language,
-            )
-            evaluations[title] = SlideEvaluation.model_validate(raw_evaluation)
+        closing_theme = str(raw_slides[-1].get("theme", "clean_light")) if raw_slides else "clean_light"
+        raw_slides.append(_build_closing_slide("감사합니다", closing_theme, people))
 
-        closing_theme = slides[-1].theme if slides else "clean_light"
-        slides.append(_build_closing_slide("감사합니다", closing_theme, people))
+        state.metadata["slides_raw"] = raw_slides
+        slides_ok, slides_error = validate_slides_payload(raw_slides)
+        if not slides_ok:
+            raise ValueError(f"{slides_error} JSON이 잘못되었습니다.")
 
-        state.metadata["slide_evaluations"] = {
-            key: value.model_dump() for key, value in evaluations.items()
-        }
+        slides = [SlideContent.model_validate(slide) for slide in raw_slides]
         state.metadata["people_info"] = people
         return slides

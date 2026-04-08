@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
@@ -7,9 +8,11 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from ..models.project_state import ProjectState
+from ..services.json_validation import validate_outline_payload, validate_slides_payload
 from ..services.pptx_service import PptxGenerator
 
 router = APIRouter(tags=["export"])
+logger = logging.getLogger(__name__)
 
 _pptx_generator = PptxGenerator()
 
@@ -21,19 +24,32 @@ class ExportPptxRequest(BaseModel):
 
 @router.post("/export/pptx")
 async def export_pptx(req: ExportPptxRequest, request: Request) -> Response:
-    """슬라이드 기반 PPTX 파일 반환 (notes는 포함되지 않음)"""
     repo = request.app.state.project_repository
     state: ProjectState | None = await repo.get(req.project_id)
 
     if state is None:
-        raise HTTPException(
-            status_code=404, detail=f"프로젝트를 찾을 수 없습니다: {req.project_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"project not found: {req.project_id}")
     if not state.slides:
         raise HTTPException(
             status_code=400,
-            detail="슬라이드가 없습니다. /generate/slides 또는 /generate/all을 먼저 호출하세요.",
+            detail="slides not found. Call /generate/slides or /generate/all first.",
         )
+
+    outline_ok, outline_error = validate_outline_payload(
+        {title: item.model_dump() for title, item in state.outline.items()}
+    )
+    if not outline_ok:
+        message = f"{outline_error}가 잘못되었습니다 regenerate 해주세요"
+        logger.error(message)
+        raise HTTPException(status_code=400, detail=message)
+
+    slides_ok, slides_error = validate_slides_payload(
+        [slide.model_dump() for slide in state.slides]
+    )
+    if not slides_ok:
+        message = f"{slides_error}가 잘못되었습니다 regenerate 해주세요"
+        logger.error(message)
+        raise HTTPException(status_code=400, detail=message)
 
     pptx_bytes = _pptx_generator.generate(state)
 
