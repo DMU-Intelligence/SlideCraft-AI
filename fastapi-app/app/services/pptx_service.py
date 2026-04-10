@@ -167,14 +167,20 @@ def _render_text_box(slide: Any, elem: TextBoxElement) -> None:
 
 
 def _render_shape(slide: Any, elem: ShapeElement) -> None:
-    _add_panel(
-        slide,
-        left=elem.x,
-        top=elem.y,
-        width=elem.w,
-        height=elem.h,
-        fill_color=elem.fill_color,
+    shape_map = {
+        "rectangle": MSO_AUTO_SHAPE_TYPE.RECTANGLE,
+        "round_rectangle": MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
+    }
+    shape = slide.shapes.add_shape(
+        shape_map.get(elem.shape_type, MSO_AUTO_SHAPE_TYPE.RECTANGLE),
+        Inches(elem.x),
+        Inches(elem.y),
+        Inches(elem.w),
+        Inches(elem.h),
     )
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = _hex_to_rgb(elem.fill_color)
+    shape.line.fill.background()
 
 
 def _render_bullet_list(slide: Any, elem: BulletListElement) -> None:

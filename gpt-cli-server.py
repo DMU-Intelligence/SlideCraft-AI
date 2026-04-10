@@ -1,16 +1,17 @@
-"""
-Gemini / GPT CLI 브릿지 서버
+﻿"""
+GPT CLI 브릿지 서버
 
 CLI 도구를 subprocess로 호출하고, 결과를 HTTP JSON으로 반환합니다.
-FastAPI 앱(port 8000)이 이 서버(port 5001)를 호출하여 LLM 응답을 받습니다.
+FastAPI 앱이 이 서버를 호출하여 LLM 응답을 받습니다.
 
 실행:
-    python gemini-cli-server.py
+    python gpt-cli-server.py
 
 환경 변수:
-    CLI_COMMAND      : 실행할 CLI 명령어 (기본값: gemini)
+    CLI_COMMAND      : 실행할 CLI 명령어 (기본값: codex exec --skip-git-repo-check -)
     CLI_SERVER_PORT  : 서버 포트 (기본값: 5001)
 """
+import logging
 import os
 import subprocess
 import sys
@@ -19,15 +20,15 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-import logging
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
-logger = logging.getLogger("cli-bridge")
+logger = logging.getLogger("gpt-cli-bridge")
 
-app = FastAPI(title="CLI Bridge Server")
+DEFAULT_CLI_COMMAND = "codex exec --skip-git-repo-check -"
+
+app = FastAPI(title="GPT CLI Bridge Server")
 
 
 class PromptRequest(BaseModel):
@@ -41,7 +42,7 @@ class PromptResponse(BaseModel):
 @app.post("/generate", response_model=PromptResponse)
 def generate(req: PromptRequest):
     """CLI 도구에 프롬프트를 전달하고 응답을 반환합니다."""
-    cmd = os.getenv("CLI_COMMAND", "gemini")
+    cmd = os.getenv("CLI_COMMAND", DEFAULT_CLI_COMMAND)
 
     logger.info("[REQUEST] CLI 명령어: %s", cmd)
 
@@ -89,19 +90,21 @@ def generate(req: PromptRequest):
             ),
         )
 
-    response_text = result.stdout.strip()
+    response_text = (result.stdout or "").strip()
 
     return PromptResponse(response=response_text)
 
 
 @app.get("/health")
 def health():
-    cmd = os.getenv("CLI_COMMAND", "gemini")
+    cmd = os.getenv("CLI_COMMAND", DEFAULT_CLI_COMMAND)
     return {"status": "ok", "cli_command": cmd}
 
 
 if __name__ == "__main__":
     port = int(os.getenv("CLI_SERVER_PORT", "5001"))
-    print(f"CLI Bridge Server starting on port {port}")
-    print(f"CLI_COMMAND = {os.getenv('CLI_COMMAND', 'gemini')}")
+    print(f"GPT CLI Bridge Server starting on port {port}")
+    print(f"CLI_COMMAND = {os.getenv('CLI_COMMAND', DEFAULT_CLI_COMMAND)}")
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+

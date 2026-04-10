@@ -34,6 +34,32 @@ def _pick_theme(role: str, tone: str) -> str:
     return "clean_light"
 
 
+def _pick_variant(slide_info: dict[str, object]) -> str:
+    preferred_variant = str(slide_info.get("preferred_variant") or "").strip()
+    if preferred_variant in {
+        "title_page",
+        "content_box_list",
+        "content_two_panel",
+        "content_sidebar",
+        "content_split_band",
+        "content_compact",
+        "closing_page",
+    }:
+        return preferred_variant
+
+    role = str(slide_info.get("role", "")).strip().lower()
+    key_points = [str(item) for item in slide_info.get("key_points", []) if isinstance(item, str)]
+    if role == "problem_intro":
+        return "title_page"
+    if role == "analysis":
+        return "content_split_band"
+    if role in {"summary", "solution"}:
+        return "content_compact"
+    if role == "comparison" or len(key_points) >= 4:
+        return "content_two_panel"
+    return "content_box_list"
+
+
 def _extract_people_info(text: str) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     candidates: list[str] = []
@@ -197,6 +223,7 @@ def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]
     role = str(slide_info.get("role", "")).strip().lower()
     tone = str(slide_info.get("tone", "")).strip().lower()
     raw_slide.setdefault("theme", _pick_theme(role, tone))
+    raw_slide.setdefault("slide_variant", _pick_variant(slide_info))
     return raw_slide
 
 
@@ -244,6 +271,7 @@ class SlideGenerator:
                 language=state.language,
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
+                request_label=f"slide {index + 1} project {state.project_id}: {title}",
             )
             raw_slides.append(_normalize_slide(raw_slide, slide_info))
 

@@ -30,7 +30,7 @@ class TextBoxElement(BaseModel):
 
 class ShapeElement(BaseModel):
     type: Literal["shape"] = "shape"
-    shape_type: Literal["rectangle"] = "rectangle"
+    shape_type: Literal["rectangle", "round_rectangle"] = "rectangle"
     left: float
     top: float
     width: float

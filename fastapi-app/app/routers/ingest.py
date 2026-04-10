@@ -55,7 +55,11 @@ async def ingest_document(
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    cleaned_text = await llm_client.clean_text(parsed_doc.text, language)
+    cleaned_text = await llm_client.clean_text(
+        parsed_doc.text,
+        language,
+        request_label=f"clean_text project {resolved_project_id}",
+    )
 
     # ── ProjectState 생성 & 저장 ─────────────────────────────────────────────
     state = ProjectState(

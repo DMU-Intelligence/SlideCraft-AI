@@ -16,4 +16,5 @@ class NotesGenerator:
             slides=[slide.model_dump() for slide in state.slides],
             outline={title: item.model_dump() for title, item in state.outline.items()},
             language=state.language,
+            request_label=f"notes project {state.project_id}",
         )

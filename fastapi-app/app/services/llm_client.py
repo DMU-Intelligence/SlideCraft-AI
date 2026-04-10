@@ -5,6 +5,7 @@ import logging
 import os
 import re
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -12,6 +13,98 @@ import httpx
 from ..core.config import Settings
 
 logger = logging.getLogger(__name__)
+_FASTAPI_APP_DIR = Path(__file__).resolve().parents[2]
+_CANONICAL_SLIDE_VARIANTS = (
+    "title_page|content_box_list|content_two_panel|content_sidebar|"
+    "content_split_band|content_compact|closing_page"
+)
+
+
+def _load_prompt_contract(filename: str) -> str:
+    return (_FASTAPI_APP_DIR / filename).read_text(encoding="utf-8").strip()
+
+
+_SLOTS_PROMPT_SCHEMA = _load_prompt_contract("slots.json")
+_ELEMENTS_PROMPT_SCHEMA = _load_prompt_contract("elements.json")
+_OUTLINE_PROMPT_SCHEMA = _load_prompt_contract("outline.json")
+_SLIDE_PAGE_PROMPT_SCHEMA = {
+    "background": "#RRGGBB",
+    "slots": {
+        "headline": "string",
+        "body": "string",
+        "bullets": ["string"],
+        "left_points": ["string"],
+        "right_points": ["string"],
+        "highlight": "string",
+        "people": ["string"],
+    },
+    "elements": ["SlideElement"],
+}
+_SLIDE_RESPONSE_PROMPT_SCHEMA = json.dumps(
+    {
+        "title": "string",
+        "theme": "clean_light|bold_dark|editorial",
+        "slide_variant": _CANONICAL_SLIDE_VARIANTS,
+        "pages": [_SLIDE_PAGE_PROMPT_SCHEMA],
+    },
+    ensure_ascii=False,
+)
+
+
+def _normalize_request_label(request_label: str, fallback: str) -> str:
+    return request_label.strip() or fallback
+
+
+def _log_llm_text(stage: str, request_label: str, text: str) -> None:
+    logger.info("[LLM][%s][%s]\n%s", request_label, stage, text)
+
+
+def _to_log_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+async def _call_cli_bridge(
+    *,
+    url_env_var: str,
+    default_url: str,
+    prompt: str,
+    bridge_name: str,
+) -> str:
+    url = os.getenv(url_env_var, default_url).rstrip("/")
+    full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
+
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            response = await client.post(
+                f"{url}/generate",
+                json={"prompt": full_prompt},
+            )
+            response.raise_for_status()
+            data = response.json()
+    except httpx.ConnectError as exc:
+        raise RuntimeError(
+            f"{bridge_name} bridge server connection failed: {url}/generate "
+            f"(set {url_env_var} or start the bridge server)"
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        detail = ""
+        try:
+            payload = exc.response.json()
+            detail_value = payload.get("detail")
+            if detail_value:
+                detail = f": {detail_value}"
+        except Exception:
+            body = (exc.response.text or "").strip()
+            if body:
+                detail = f": {body[:300]}"
+        raise RuntimeError(
+            f"{bridge_name} bridge server returned {exc.response.status_code} for "
+            f"{url}/generate{detail}"
+        ) from exc
+
+    return str(data["response"])
 
 
 def _parse_json(text: str) -> dict[str, Any]:
@@ -47,22 +140,22 @@ def _pick_slide_variant(slide_info: dict[str, Any]) -> str:
         "content_split_band",
         "content_compact",
         "closing_page",
-        "title",
-        "section",
-        "summary",
-        "two_column",
     }:
         return preferred_variant
 
     role = str(slide_info.get("role", "")).strip().lower()
     key_points = slide_info.get("key_points", [])
     if role == "problem_intro":
-        return "title"
+        return "title_page"
+    if role == "analysis":
+        return "content_split_band"
     if role in {"summary", "solution"}:
-        return "summary"
+        return "content_compact"
+    if role == "comparison":
+        return "content_two_panel"
     if isinstance(key_points, list) and len(key_points) >= 4:
-        return "two_column"
-    return "section"
+        return "content_two_panel"
+    return "content_box_list"
 
 
 def _pick_theme(slide_info: dict[str, Any]) -> str:
@@ -77,7 +170,7 @@ def _pick_theme(slide_info: dict[str, Any]) -> str:
 
 class LLMClient(ABC):
     @abstractmethod
-    async def clean_text(self, raw_text: str, language: str) -> str:
+    async def clean_text(self, raw_text: str, language: str, request_label: str = "") -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -88,6 +181,7 @@ class LLMClient(ABC):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -101,6 +195,7 @@ class LLMClient(ABC):
         language: str,
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -110,6 +205,7 @@ class LLMClient(ABC):
         slides: list[dict[str, Any]],
         outline: dict[str, Any],
         language: str,
+        request_label: str = "",
     ) -> str:
         raise NotImplementedError
 
@@ -121,6 +217,7 @@ class LLMClient(ABC):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -136,6 +233,7 @@ class LLMClient(ABC):
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -155,7 +253,7 @@ Source text:
 """
 
 _GENERATE_OUTLINE_PROMPT = """
-You are designing a presentation outline from a source document.
+You design a presentation outline from a source document.
 Return valid JSON only.
 
 Context:
@@ -164,33 +262,20 @@ Context:
 - Presentation goal: {presentation_goal}
 - Target audience: {target_audience}
 
-Task:
-- First create a concise presentation title suitable for the audience and source document.
-- Then create slide-level outline entries, not section-only headings.
-- Each outline entry value must include:
-  id, role, goal, key_points, tone, description, page_size
-- Use this JSON shape:
-{{
-  "title": "presentation title",
-  "outline": {{
-    "Slide Title": {{
-      "id": "slide_01",
-      "role": "problem_intro|detail|solution|summary|comparison|analysis",
-      "goal": "one sentence",
-      "key_points": ["...", "..."],
-      "tone": "informative|analytical|persuasive|closing|hook",
-      "description": "speaker-facing design description",
-      "page_size": 1
-    }}
-  }}
-}}
+Return:
+- "title": concise presentation title
+- "outline": object keyed by slide title
+
+Outline prompt contract:
+{outline_schema_json}
 
 Constraints:
-- Make the presentation title specific and natural, not just the raw filename.
-- Keep the flow coherent for a general audience.
-- Keep page_size between 1 and 2.
-- Keep key_points concise and grounded in the source document.
-- Do not include topics unsupported by the source.
+- Create slide-level entries, not section-only headings.
+- Make the title specific and natural.
+- Keep flow coherent for a general audience.
+- Keep key_points concise and source-grounded.
+- Choose a preferred_variant that fits the content density.
+- Do not include unsupported topics.
 
 Source document:
 {content}
@@ -198,55 +283,16 @@ Source document:
 
 _GENERATE_SLIDE_PROMPT = """
 You create one presentation slide in JSON.
-Return valid JSON only with this shape:
-{{
-  "title": "string",
-  "theme": "clean_light|bold_dark|editorial",
-  "slide_variant": "title_page|content_box_list|content_two_panel|content_sidebar|content_split_band|content_compact|closing_page",
-  "pages": [
-    {{
-      "background": "#FFFFFF",
-      "slots": {{
-        "eyebrow": "optional short label",
-        "headline": "main message",
-        "body": "supporting sentence",
-        "bullets": ["...", "..."],
-        "left_points": ["...", "..."],
-        "right_points": ["...", "..."],
-        "highlight": "optional short callout",
-        "people": ["presenter or team information when available"]
-      }},
-      "elements": [
-        {{
-          "type": "text_box",
-          "text": "string",
-          "x": 1.0,
-          "y": 0.5,
-          "w": 11.8,
-          "h": 1.0,
-          "font_name": "Malgun Gothic",
-          "font_size": 28,
-          "font_bold": false,
-          "font_color": "#0F172A",
-          "align": "left"
-        }},
-        {{
-          "type": "bullet_list",
-          "x": 1.0,
-          "y": 1.5,
-          "w": 11.8,
-          "h": 1.8,
-          "items": ["...", "..."],
-          "bullet_char": "-",
-          "bullet_color": "#2563EB",
-          "font_name": "Malgun Gothic",
-          "font_size": 16,
-          "font_color": "#1E293B"
-        }}
-      ]
-    }}
-  ]
-}}
+Return valid JSON only.
+
+Response schema:
+{slide_response_schema_json}
+
+Slots prompt contract:
+{slots_schema_json}
+
+Elements prompt contract:
+{elements_schema_json}
 
 Presentation context:
 - Goal: {presentation_goal}
@@ -258,17 +304,17 @@ Current slide contract:
 {slide_info_json}
 
 Rules:
-- This is a fill-in task based on the contract above, not a free rewrite.
-- Prefer `elements` as the primary representation.
-- Use `slots` only as optional helper metadata.
-- If you provide `elements`, use `x`, `y`, `w`, `h` for coordinates.
-- Pick one `slide_variant` and keep the slide faithful to that variant.
-- If the slide is the opening slide and speaker/team info is present in the contract, include it in `people`.
+- This is a fill-in task based on the slide contract, not a free rewrite.
+- Prefer elements as the primary representation.
+- If you include slots, follow the slots prompt contract exactly.
+- If you include elements, follow the elements prompt contract exactly.
+- Use one canonical slide_variant only.
+- Make the chosen slide_variant visible in the layout, not only in metadata.
 - Reflect the slide goal and key_points directly.
-- Use at most 5 bullets per page.
-- Keep wording easy for non-experts.
-- Add one short supporting body or highlight when useful.
 - Use only source-backed content.
+- Keep wording easy for non-experts.
+- Never exceed 5 bullet items in one bullet_list or slots list.
+- If the slide is an opening slide and people info exists, include people in slots.
 - Keep the slide connected to the previous and next flow.
 - Write in {language}.
 
@@ -299,7 +345,8 @@ You are updating a presentation outline using fixed slide titles.
 Return valid JSON only.
 
 Use the exact titles provided. For each title, create:
-id, role, goal, key_points, tone, description, page_size
+an outline item that follows this prompt contract:
+{outline_schema_json}
 
 Presentation goal: {presentation_goal}
 Target audience: {target_audience}
@@ -314,6 +361,15 @@ Source document:
 _REGENERATE_SLIDE_PROMPT = """
 You are revising an existing slide.
 Return valid JSON only in the same shape as slide generation.
+
+Response schema:
+{slide_response_schema_json}
+
+Slots prompt contract:
+{slots_schema_json}
+
+Elements prompt contract:
+{elements_schema_json}
 
 Presentation goal: {presentation_goal}
 Target audience: {target_audience}
@@ -331,6 +387,9 @@ Current slide:
 Rules:
 - Preserve the slide contract.
 - Apply the user request without breaking the flow.
+- Prefer elements as the primary representation.
+- If you include slots, follow the slots prompt contract exactly.
+- If you include elements, follow the elements prompt contract exactly.
 - Do not exceed 5 bullets.
 - Use only source-backed content.
 - Write in {language}.
@@ -339,10 +398,28 @@ Source document:
 {content}
 """
 
+_EVALUATE_SLIDE_PROMPT = """
+You evaluate one generated presentation slide.
+Return valid JSON only with keys: passed, score, checklist, issues, feedback.
+
+Language: {language}
+Previous slide summary: {previous_slide_summary}
+Next slide goal: {next_slide_goal}
+Slide contract:
+{slide_info_json}
+Slide output:
+{slide_output_json}
+"""
+
 
 class MockLLMClient(LLMClient):
-    async def clean_text(self, raw_text: str, language: str) -> str:
-        return re.sub(r"\s+", " ", raw_text).strip()
+    async def clean_text(self, raw_text: str, language: str, request_label: str = "") -> str:
+        prompt = _CLEAN_TEXT_PROMPT.format(language=language, raw_text=raw_text[:8000])
+        cleaned = re.sub(r"\s+", " ", raw_text).strip()
+        label = _normalize_request_label(request_label, "clean_text")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text({"content": cleaned}))
+        return cleaned
 
     async def generate_outline(
         self,
@@ -351,7 +428,17 @@ class MockLLMClient(LLMClient):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
+        prompt = _GENERATE_OUTLINE_PROMPT.format(
+            title=title,
+            content=content[:7000],
+            language=language,
+            presentation_goal=presentation_goal,
+            target_audience=target_audience,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            outline_schema_json=_OUTLINE_PROMPT_SCHEMA,
+        )
         sections = [
             ("서론", "problem_intro", "피부 관리의 중요성을 강조한다."),
             ("피부 타입 분석", "detail", "피부 타입의 분류와 특징을 설명한다."),
@@ -370,11 +457,16 @@ class MockLLMClient(LLMClient):
                 "tone": "informative" if role != "summary" else "closing",
                 "description": f"{slide_title}에 맞는 핵심 내용을 일반 청중이 이해하기 쉽게 정리한다.",
                 "page_size": 1,
+                "preferred_variant": _pick_slide_variant({"role": role, "key_points": [goal]}),
             }
-        return {
+        response = {
             "title": str(title).strip() or "Presentation",
             "outline": result,
         }
+        label = _normalize_request_label(request_label, "outline")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(response))
+        return response
 
     async def generate_slide(
         self,
@@ -385,9 +477,25 @@ class MockLLMClient(LLMClient):
         language: str,
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
+        prompt = _GENERATE_SLIDE_PROMPT.format(
+            presentation_goal=presentation_goal,
+            target_audience=target_audience,
+            previous_slide_summary=previous_slide_summary or "(none)",
+            next_slide_goal=next_slide_goal or "(none)",
+            slide_info_json=json.dumps(slide_info, ensure_ascii=False),
+            content=content[:5000],
+            language=language,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            slide_response_schema_json=_SLIDE_RESPONSE_PROMPT_SCHEMA,
+            slots_schema_json=_SLOTS_PROMPT_SCHEMA,
+            elements_schema_json=_ELEMENTS_PROMPT_SCHEMA,
+        )
         display_title = str(slide_info["title"]).strip()
-        bullets = slide_info.get("key_points", [])[:5]
+        bullets = [str(item).strip() for item in slide_info.get("key_points", []) if str(item).strip()][:5]
+        if not bullets:
+            bullets = [str(slide_info.get("goal") or slide_info.get("description") or display_title)]
         slide_variant = _pick_slide_variant(slide_info)
         theme = _pick_theme(slide_info)
         page_background = "#FFFDF8" if theme == "editorial" else "#0F172A" if theme == "bold_dark" else "#F8FAFC"
@@ -397,7 +505,7 @@ class MockLLMClient(LLMClient):
             "body": str(slide_info.get("description", "")),
             "highlight": str(slide_info.get("goal", "")),
         }
-        if slide_variant == "two_column":
+        if slide_variant == "content_two_panel":
             midpoint = max(1, (len(bullets) + 1) // 2)
             slots["left_points"] = bullets[:midpoint]
             slots["right_points"] = bullets[midpoint:]
@@ -448,12 +556,16 @@ class MockLLMClient(LLMClient):
                 },
             ],
         }
-        return {
+        response = {
             "title": slide_info["title"],
             "theme": theme,
             "slide_variant": slide_variant,
             "pages": [page],
         }
+        label = _normalize_request_label(request_label, f"slide: {display_title}")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(response))
+        return response
 
     async def evaluate_slide(
         self,
@@ -490,7 +602,13 @@ class MockLLMClient(LLMClient):
         slides: list[dict[str, Any]],
         outline: dict[str, Any],
         language: str,
+        request_label: str = "",
     ) -> str:
+        prompt = _GENERATE_NOTES_PROMPT.format(
+            slides_json=json.dumps(slides, ensure_ascii=False)[:7000],
+            outline_json=json.dumps(outline, ensure_ascii=False)[:4000],
+            language=language,
+        )
         lines: list[str] = []
         for slide in slides:
             bullets = _extract_slide_bullets(slide)
@@ -498,7 +616,11 @@ class MockLLMClient(LLMClient):
                 lines.append(f"{slide.get('title', '')}에서는 {', '.join(bullets)}를 중심으로 설명합니다.")
             else:
                 lines.append(f"{slide.get('title', '')} 슬라이드를 설명합니다.")
-        return " ".join(lines)
+        response = {"notes": " ".join(lines)}
+        label = _normalize_request_label(request_label, "notes")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(response))
+        return str(response["notes"])
 
     async def update_outline(
         self,
@@ -507,7 +629,17 @@ class MockLLMClient(LLMClient):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
+        prompt = _UPDATE_OUTLINE_PROMPT.format(
+            titles="\n".join(f"- {title}" for title in titles),
+            content=content[:7000],
+            language=language,
+            presentation_goal=presentation_goal,
+            target_audience=target_audience,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            outline_schema_json=_OUTLINE_PROMPT_SCHEMA,
+        )
         result: dict[str, Any] = {}
         for index, title in enumerate(titles, start=1):
             result[title] = {
@@ -518,7 +650,11 @@ class MockLLMClient(LLMClient):
                 "tone": "informative",
                 "description": f"{title}에 대한 설명 슬라이드",
                 "page_size": 1,
+                "preferred_variant": "content_box_list",
             }
+        label = _normalize_request_label(request_label, "update_outline")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(result))
         return result
 
     async def regenerate_slide(
@@ -532,23 +668,52 @@ class MockLLMClient(LLMClient):
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
-        if current_slide:
-            return current_slide
-        return await self.generate_slide(
+        prompt = _REGENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
             target_audience=target_audience,
-            slide_info=slide_info,
-            content=content,
+            previous_slide_summary=previous_slide_summary or "(none)",
+            next_slide_goal=next_slide_goal or "(none)",
+            user_request=user_request or "(none)",
+            slide_info_json=json.dumps(slide_info, ensure_ascii=False),
+            current_slide_json=json.dumps(current_slide, ensure_ascii=False)[:5000],
+            content=content[:5000],
             language=language,
-            previous_slide_summary=previous_slide_summary,
-            next_slide_goal=next_slide_goal,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            slide_response_schema_json=_SLIDE_RESPONSE_PROMPT_SCHEMA,
+            slots_schema_json=_SLOTS_PROMPT_SCHEMA,
+            elements_schema_json=_ELEMENTS_PROMPT_SCHEMA,
         )
+        if current_slide:
+            response = current_slide
+        else:
+            response = await self.generate_slide(
+                presentation_goal=presentation_goal,
+                target_audience=target_audience,
+                slide_info=slide_info,
+                content=content,
+                language=language,
+                previous_slide_summary=previous_slide_summary,
+                next_slide_goal=next_slide_goal,
+                request_label=request_label,
+            )
+        label = _normalize_request_label(request_label, f"regenerate slide: {slide_info.get('title', '')}")
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(response))
+        return response
 
 
 class OpenAICompatibleLLMClient(LLMClient):
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+
+    async def _call_with_logging(self, prompt: str, request_label: str, fallback_label: str) -> str:
+        label = _normalize_request_label(request_label, fallback_label)
+        _log_llm_text("prompt", label, prompt)
+        response = await self._call(prompt)
+        _log_llm_text("response", label, response)
+        return response
 
     async def _call(self, prompt: str) -> str:
         if not self._settings.openai_api_key:
@@ -569,9 +734,9 @@ class OpenAICompatibleLLMClient(LLMClient):
             data = response.json()
         return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-    async def clean_text(self, raw_text: str, language: str) -> str:
+    async def clean_text(self, raw_text: str, language: str, request_label: str = "") -> str:
         prompt = _CLEAN_TEXT_PROMPT.format(language=language, raw_text=raw_text[:8000])
-        result = _parse_json(await self._call(prompt))
+        result = _parse_json(await self._call_with_logging(prompt, request_label, "clean_text"))
         return str(result.get("content", raw_text))
 
     async def generate_outline(
@@ -581,6 +746,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _GENERATE_OUTLINE_PROMPT.format(
             title=title,
@@ -588,8 +754,10 @@ class OpenAICompatibleLLMClient(LLMClient):
             language=language,
             presentation_goal=presentation_goal,
             target_audience=target_audience,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            outline_schema_json=_OUTLINE_PROMPT_SCHEMA,
         )
-        return _parse_json(await self._call(prompt))
+        return _parse_json(await self._call_with_logging(prompt, request_label, "outline"))
 
     async def generate_slide(
         self,
@@ -600,6 +768,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         language: str,
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _GENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
@@ -609,8 +778,12 @@ class OpenAICompatibleLLMClient(LLMClient):
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             content=content[:5000],
             language=language,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            slide_response_schema_json=_SLIDE_RESPONSE_PROMPT_SCHEMA,
+            slots_schema_json=_SLOTS_PROMPT_SCHEMA,
+            elements_schema_json=_ELEMENTS_PROMPT_SCHEMA,
         )
-        return _parse_json(await self._call(prompt))
+        return _parse_json(await self._call_with_logging(prompt, request_label, f"slide: {slide_info.get('title', '')}"))
 
     async def evaluate_slide(
         self,
@@ -628,20 +801,21 @@ class OpenAICompatibleLLMClient(LLMClient):
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             slide_output_json=json.dumps(slide_output, ensure_ascii=False),
         )
-        return _parse_json(await self._call(prompt))
+        return _parse_json(await self._call_with_logging(prompt, f"evaluate slide: {slide_title}", f"evaluate slide: {slide_title}"))
 
     async def generate_notes(
         self,
         slides: list[dict[str, Any]],
         outline: dict[str, Any],
         language: str,
+        request_label: str = "",
     ) -> str:
         prompt = _GENERATE_NOTES_PROMPT.format(
             slides_json=json.dumps(slides, ensure_ascii=False)[:7000],
             outline_json=json.dumps(outline, ensure_ascii=False)[:4000],
             language=language,
         )
-        result = _parse_json(await self._call(prompt))
+        result = _parse_json(await self._call_with_logging(prompt, request_label, "notes"))
         return str(result.get("notes", ""))
 
     async def update_outline(
@@ -651,6 +825,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         language: str,
         presentation_goal: str,
         target_audience: str,
+        request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _UPDATE_OUTLINE_PROMPT.format(
             titles="\n".join(f"- {title}" for title in titles),
@@ -658,8 +833,10 @@ class OpenAICompatibleLLMClient(LLMClient):
             language=language,
             presentation_goal=presentation_goal,
             target_audience=target_audience,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            outline_schema_json=_OUTLINE_PROMPT_SCHEMA,
         )
-        return _parse_json(await self._call(prompt))
+        return _parse_json(await self._call_with_logging(prompt, request_label, "update_outline"))
 
     async def regenerate_slide(
         self,
@@ -672,6 +849,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
         next_slide_goal: str = "",
+        request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _REGENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
@@ -683,8 +861,12 @@ class OpenAICompatibleLLMClient(LLMClient):
             current_slide_json=json.dumps(current_slide, ensure_ascii=False)[:5000],
             content=content[:5000],
             language=language,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+            slide_response_schema_json=_SLIDE_RESPONSE_PROMPT_SCHEMA,
+            slots_schema_json=_SLOTS_PROMPT_SCHEMA,
+            elements_schema_json=_ELEMENTS_PROMPT_SCHEMA,
         )
-        return _parse_json(await self._call(prompt))
+        return _parse_json(await self._call_with_logging(prompt, request_label, f"regenerate slide: {slide_info.get('title', '')}"))
 
 
 class GeminiLLMClient(OpenAICompatibleLLMClient):
@@ -726,17 +908,12 @@ class GeminiCLIClient(OpenAICompatibleLLMClient):
     """
 
     async def _call(self, prompt: str) -> str:
-        url = os.getenv("GEMINI_CLI_SERVER_URL", "http://localhost:5001")
-        full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
-
-        async with httpx.AsyncClient(timeout=300) as client:
-            response = await client.post(
-                f"{url}/generate",
-                json={"prompt": full_prompt},
-            )
-            response.raise_for_status()
-            data = response.json()
-        return data["response"]
+        return await _call_cli_bridge(
+            url_env_var="GEMINI_CLI_SERVER_URL",
+            default_url="http://localhost:5001",
+            prompt=prompt,
+            bridge_name="Gemini CLI",
+        )
 
 
 class GptCLIClient(OpenAICompatibleLLMClient):
@@ -749,17 +926,12 @@ class GptCLIClient(OpenAICompatibleLLMClient):
     """
 
     async def _call(self, prompt: str) -> str:
-        url = os.getenv("GPT_CLI_SERVER_URL", "http://localhost:5001")
-        full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
-
-        async with httpx.AsyncClient(timeout=300) as client:
-            response = await client.post(
-                f"{url}/generate",
-                json={"prompt": full_prompt},
-            )
-            response.raise_for_status()
-            data = response.json()
-        return data["response"]
+        return await _call_cli_bridge(
+            url_env_var="GPT_CLI_SERVER_URL",
+            default_url="http://localhost:5001",
+            prompt=prompt,
+            bridge_name="GPT CLI",
+        )
 
 
 def create_llm_client(settings: Settings) -> LLMClient:

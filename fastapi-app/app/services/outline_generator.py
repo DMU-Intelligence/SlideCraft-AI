@@ -9,6 +9,12 @@ def _preferred_variant_for_role(role: str, key_points: list[str]) -> str:
     role = role.strip().lower()
     if role == "problem_intro":
         return "title_page"
+    if role == "analysis":
+        return "content_split_band"
+    if role in {"summary", "solution"}:
+        return "content_compact"
+    if role == "comparison":
+        return "content_two_panel"
     if len(key_points) >= 4:
         return "content_two_panel"
     return "content_box_list"
@@ -33,6 +39,7 @@ class OutlineGenerator:
             language=state.language,
             presentation_goal=presentation_goal,
             target_audience=target_audience,
+            request_label=f"outline project {state.project_id}",
         )
         generated_title = str(raw.get("title") or state.title).strip() or state.title
         outline_payload = raw.get("outline", {})

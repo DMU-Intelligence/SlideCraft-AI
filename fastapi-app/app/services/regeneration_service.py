@@ -34,6 +34,12 @@ def _pick_theme(role: str, tone: str) -> str:
 def _pick_variant(role: str, key_points: list[str]) -> str:
     if role == "problem_intro":
         return "title_page"
+    if role == "analysis":
+        return "content_split_band"
+    if role in {"summary", "solution"}:
+        return "content_compact"
+    if role == "comparison":
+        return "content_two_panel"
     if len(key_points) >= 4:
         return "content_two_panel"
     return "content_box_list"
@@ -91,6 +97,7 @@ class RegenerationService:
                 current_slide=current_slide,
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
+                request_label=f"regenerate slide {idx + 1} project {state.project_id}: {slide_title}",
             )
         else:
             raw = await self._llm_client.generate_slide(
@@ -101,6 +108,7 @@ class RegenerationService:
                 language=state.language,
                 previous_slide_summary=previous_slide_summary,
                 next_slide_goal=next_slide_goal,
+                request_label=f"slide {idx + 1} project {state.project_id}: {slide_title}",
             )
 
         updated = SlideContent.model_validate(_normalize_slide(raw, slide_info))
@@ -145,6 +153,7 @@ class RegenerationService:
             language=state.language,
             presentation_goal=presentation_goal,
             target_audience=target_audience,
+            request_label=f"update_outline project {state.project_id}",
         )
         outline: dict[str, OutlineItem] = {}
         for title, item in raw.items():

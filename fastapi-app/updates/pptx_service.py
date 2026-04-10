@@ -11,6 +11,7 @@ from typing import Any
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
@@ -71,8 +72,12 @@ def _render_text_box(slide: Any, elem: TextBoxElement) -> None:
 
 
 def _render_shape(slide: Any, elem: ShapeElement) -> None:
+    shape_map = {
+        "rectangle": MSO_AUTO_SHAPE_TYPE.RECTANGLE,
+        "round_rectangle": MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
+    }
     shape = slide.shapes.add_shape(
-        1,  # MSO_SHAPE_TYPE.RECTANGLE
+        shape_map.get(elem.shape_type, MSO_AUTO_SHAPE_TYPE.RECTANGLE),
         Inches(elem.left), Inches(elem.top),
         Inches(elem.width), Inches(elem.height),
     )

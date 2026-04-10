@@ -47,7 +47,7 @@ export interface TextBoxElement {
 
 export interface ShapeElement {
   type: "shape";
-  shape_type: "rectangle";
+  shape_type: "rectangle" | "round_rectangle";
   left: number;
   top: number;
   width: number;
