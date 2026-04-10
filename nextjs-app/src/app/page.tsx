@@ -1,138 +1,121 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
-import { ApiConfigPanel } from "@/components/ApiConfigPanel";
-import { GenerationPanel } from "@/components/GenerationPanel";
 import { GeneratedResults } from "@/components/GeneratedResults";
-import { IngestPanel } from "@/components/IngestPanel";
-import { JsonViewer } from "@/components/JsonViewer";
-import { LogsStatusViewer } from "@/components/LogsStatusViewer";
-import { ProjectStateViewer } from "@/components/ProjectStateViewer";
-import { RegenerationPanel } from "@/components/RegenerationPanel";
-import { exportPptx } from "@/lib/api";
-import { useApiTestStore } from "@/store/useApiTestStore";
+import { UploadArea } from "@/components/UploadArea";
+
+const MOCK_SLIDES = [
+  { id: 1, title: "Introduction to AI in Business" },
+  { id: 2, title: "Key Benefits & ROI Analysis" },
+  { id: 3, title: "Implementation Strategy" },
+  { id: 4, title: "Case Studies & Success Stories" },
+  { id: 5, title: "Future Trends & Roadmap" },
+  { id: 6, title: "Q&A and Next Steps" },
+];
 
 export default function Home() {
-  const [showResults, setShowResults] = useState(false);
-  const [downloadPending, setDownloadPending] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [presentationTitle, setPresentationTitle] = useState("");
+  const [isGenerated, setIsGenerated] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const baseUrl = useApiTestStore((s) => s.backendBaseUrl);
-  const currentProjectId = useApiTestStore((s) => s.currentProjectId);
-  const ingestResult = useApiTestStore((s) => s.ingestResult);
-  const latestRequest = useApiTestStore((s) => s.latestRequest);
-  const latestResponse = useApiTestStore((s) => s.latestResponse);
-  const latestError = useApiTestStore((s) => s.latestError);
-  const outlineResult = useApiTestStore((s) => s.outlineResult);
-  const slidesResult = useApiTestStore((s) => s.slidesResult);
-  const notesResult = useApiTestStore((s) => s.notesResult);
-  const generateAllResult = useApiTestStore((s) => s.generateAllResult);
-  const regenerateSlideResult = useApiTestStore((s) => s.regenerateSlideResult);
-  const regenerateNotesResult = useApiTestStore((s) => s.regenerateNotesResult);
+  const script = `Welcome everyone to today's presentation on ${presentationTitle || "AI-Powered Solutions"}.
 
-  const { resultSlides, resultScript, presentationTitle, hasSlides, projectIdNumber } = useMemo(() => {
-    const slides =
-      generateAllResult?.slides ??
-      slidesResult?.slides ??
-      (regenerateSlideResult?.slide ? [regenerateSlideResult.slide] : []);
-    const script =
-      (typeof generateAllResult?.notes === "string" ? generateAllResult.notes : "") ||
-      (typeof notesResult?.notes === "string" ? notesResult.notes : "") ||
-      (typeof regenerateNotesResult?.notes === "string" ? regenerateNotesResult.notes : "");
-    const pid = currentProjectId ? Number(currentProjectId) : NaN;
-    return {
-      resultSlides: slides.map((s, i) => ({ id: i + 1, title: s.title || `슬라이드 ${i + 1}` })),
-      resultScript: script,
-      presentationTitle: ingestResult?.title,
-      hasSlides: slides.length > 0,
-      projectIdNumber: Number.isFinite(pid) ? pid : null,
-    };
-  }, [
-    currentProjectId,
-    generateAllResult,
-    ingestResult?.title,
-    notesResult?.notes,
-    regenerateNotesResult?.notes,
-    regenerateSlideResult?.slide,
-    slidesResult?.slides,
-  ]);
+Slide 1: Introduction
+Let's begin by exploring how artificial intelligence is revolutionizing the business landscape. In this presentation, we'll dive deep into the transformative power of AI and its practical applications across industries.
 
-  const handleDownloadPptx = async () => {
-    if (projectIdNumber == null) return;
-    setDownloadPending(true);
-    try {
-      const blob = await exportPptx(baseUrl, {
-        projectId: projectIdNumber,
-        filename: presentationTitle ? `${presentationTitle}.pptx` : undefined,
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = presentationTitle ? `${presentationTitle.replace(/[\\/:*?"<>|]/g, "_")}.pptx` : "presentation.pptx";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // Errors surface in store logs when using other actions; export is fire-and-forget here.
-    } finally {
-      setDownloadPending(false);
-    }
+Slide 2: Key Benefits & ROI Analysis
+The implementation of AI solutions has shown remarkable results. Companies adopting AI technologies have reported up to 40% improvement in operational efficiency and a 35% reduction in costs. We'll examine real data and metrics that demonstrate the tangible return on investment.
+
+Slide 3: Implementation Strategy
+Successful AI adoption requires a structured approach. We recommend a phased implementation that starts with identifying key pain points, followed by pilot programs, and then scaling across the organization. This minimizes risk while maximizing learning opportunities.
+
+Slide 4: Case Studies & Success Stories
+Let me share some inspiring examples. Company A increased their customer satisfaction by 50% through AI-powered chatbots. Company B reduced their processing time from days to hours using machine learning algorithms. These success stories demonstrate what's possible.
+
+Slide 5: Future Trends & Roadmap
+Looking ahead, we're seeing exciting developments in generative AI, autonomous systems, and predictive analytics. The roadmap for the next 3-5 years shows exponential growth in AI capabilities and accessibility.
+
+Slide 6: Q&A and Next Steps
+Now I'd like to open the floor for questions. Following this presentation, we'll provide you with detailed documentation and a personalized action plan to begin your AI journey.
+
+Thank you for your attention. Let's build the future together.`;
+
+  const handleGenerate = async () => {
+    if (!uploadedFile || !presentationTitle || isGenerating) return;
+    setIsGenerating(true);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setIsGenerating(false);
+    setIsGenerated(true);
   };
 
-  if (showResults && hasSlides) {
+  if (isGenerated) {
     return (
       <GeneratedResults
-        slides={resultSlides}
-        script={resultScript}
+        slides={MOCK_SLIDES}
+        script={script}
         presentationTitle={presentationTitle}
-        onBack={() => setShowResults(false)}
-        onDownload={handleDownloadPptx}
-        downloadPending={downloadPending}
+        onBack={() => setIsGenerated(false)}
       />
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-8 text-center">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
+      <div className="w-full max-w-2xl">
+        <header className="mb-12 text-center">
           <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">SlideCraft AI</h1>
-          <p className="mx-auto mt-3 max-w-xl text-base text-gray-600 md:text-lg">문서를 업로드하면 발표 자료를 만들고, API로 단계별 생성을 테스트할 수 있습니다.</p>
-          {hasSlides ? (
-            <button
-              type="button"
-              onClick={() => setShowResults(true)}
-              className="mt-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-indigo-700"
-            >
-              슬라이드 &amp; 대본 보기
-            </button>
-          ) : null}
+          <h1 className="mb-3 text-4xl font-bold text-gray-900">SlideCraft AI</h1>
+          <p className="text-lg text-gray-600">문서를 업로드하면 발표 자료가 자동으로 생성됩니다.</p>
         </header>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
-          <div className="space-y-6">
-            <ApiConfigPanel />
-            <IngestPanel />
-            <GenerationPanel />
-            <RegenerationPanel />
+        <section className="space-y-8 rounded-3xl border border-gray-100 bg-white p-10 shadow-xl">
+          <div>
+            <label className="mb-3 block text-sm font-semibold text-gray-700">PDF 문서 업로드</label>
+            <UploadArea onFileSelect={setUploadedFile} selectedFile={uploadedFile} />
           </div>
 
-          <div className="space-y-6">
-            <ProjectStateViewer />
-            <LogsStatusViewer />
-            <JsonViewer title="Outline JSON" data={outlineResult} />
-            <JsonViewer title="Slides JSON" data={slidesResult} />
-            <JsonViewer title="Notes JSON" data={notesResult} />
-            <JsonViewer title="Latest Request JSON" data={latestRequest} />
-            <JsonViewer title="Latest Response JSON" data={latestResponse} />
-            <JsonViewer title="Latest Error JSON" data={latestError} />
+          <div>
+            <label htmlFor="title" className="mb-3 block text-sm font-semibold text-gray-700">
+              발표 제목
+            </label>
+            <input
+              id="title"
+              type="text"
+              value={presentationTitle}
+              onChange={(e) => setPresentationTitle(e.target.value)}
+              placeholder="발표 제목을 입력하세요..."
+              className="w-full rounded-xl border border-gray-200 px-5 py-4 text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
           </div>
-        </div>
 
-        <p className="mt-10 text-center text-sm text-gray-500">FastAPI 백엔드와 연동되는 개발용 클라이언트입니다.</p>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!uploadedFile || !presentationTitle || isGenerating}
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none"
+          >
+            {isGenerating ? (
+              <>
+                <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-white/30 border-t-white" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-5 w-5" />
+                AI로 PPT 생성하기
+              </>
+            )}
+          </button>
+
+          <p className="text-center text-sm text-gray-500">AI가 문서를 분석하여 몇 초 안에 멋진 발표 자료를 만들어 드립니다</p>
+        </section>
+
+        <footer className="mt-8 text-center text-sm text-gray-500">고급 AI 기술로 제공됩니다</footer>
       </div>
     </main>
   );

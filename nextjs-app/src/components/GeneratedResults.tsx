@@ -12,7 +12,7 @@ interface GeneratedResultsProps {
   script: string;
   presentationTitle?: string;
   onBack: () => void;
-  onDownload: () => void;
+  onDownload?: () => void;
   downloadPending?: boolean;
 }
 
@@ -45,7 +45,7 @@ export function GeneratedResults({
             <button
               type="button"
               onClick={onDownload}
-              disabled={downloadPending}
+              disabled={downloadPending || !onDownload}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {downloadPending ? (

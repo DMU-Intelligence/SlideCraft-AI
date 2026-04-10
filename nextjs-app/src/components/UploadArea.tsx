@@ -3,8 +3,7 @@
 import { FileText, Upload } from "lucide-react";
 import { useState, type DragEvent } from "react";
 
-const ACCEPT =
-  ".pdf,.docx,.txt,.md,.csv,.log,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown";
+const ACCEPT = ".pdf,application/pdf";
 
 interface UploadAreaProps {
   onFileSelect: (file: File) => void;
@@ -27,7 +26,7 @@ export function UploadArea({ onFileSelect, selectedFile }: UploadAreaProps) {
     e.preventDefault();
     setIsDragging(false);
     const files = e.dataTransfer.files;
-    if (files.length > 0) {
+    if (files.length > 0 && files[0].type === "application/pdf") {
       onFileSelect(files[0]);
     }
   };
@@ -75,8 +74,8 @@ export function UploadArea({ onFileSelect, selectedFile }: UploadAreaProps) {
               <Upload className="h-8 w-8 text-gray-400" />
             </div>
             <div>
-              <p className="font-medium text-gray-700">문서를 여기에 드래그하여 업로드하세요</p>
-              <p className="mt-1 text-sm text-gray-500">PDF, DOCX, TXT 등 · 또는 클릭하여 선택</p>
+              <p className="font-medium text-gray-700">PDF를 여기에 드래그하여 업로드하세요</p>
+              <p className="mt-1 text-sm text-gray-500">또는 클릭하여 파일 선택</p>
             </div>
           </>
         )}
