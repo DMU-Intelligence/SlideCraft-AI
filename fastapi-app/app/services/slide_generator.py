@@ -257,7 +257,7 @@ class SlideGenerator:
             item = state.outline[title]
             previous_slide = SlideContent.model_validate(raw_slides[-1]) if raw_slides else None
             previous_slide_summary = _summarize_slide_for_context(previous_slide)
-            next_slide_goal = state.outline[titles[index + 1]].goal if index < len(titles) - 1 else ""
+            next_slide_summary = state.outline[titles[index + 1]].description if index < len(titles) - 1 else ""
 
             slide_info = item.model_dump()
             slide_info["title"] = title
@@ -270,7 +270,7 @@ class SlideGenerator:
                 content=state.content,
                 language=state.language,
                 previous_slide_summary=previous_slide_summary,
-                next_slide_goal=next_slide_goal,
+                next_slide_summary=next_slide_summary,
                 request_label=f"slide {index + 1} project {state.project_id}: {title}",
             )
             raw_slides.append(_normalize_slide(raw_slide, slide_info))

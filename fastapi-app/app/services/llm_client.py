@@ -194,7 +194,7 @@ class LLMClient(ABC):
         content: str,
         language: str,
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
@@ -232,7 +232,7 @@ class LLMClient(ABC):
         user_request: str,
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
@@ -298,7 +298,7 @@ Presentation context:
 - Goal: {presentation_goal}
 - Target audience: {target_audience}
 - Previous slide summary: {previous_slide_summary}
-- Next slide goal: {next_slide_goal}
+- Next slide summary: {next_slide_summary}
 
 Current slide contract:
 {slide_info_json}
@@ -315,7 +315,7 @@ Rules:
 - Keep wording easy for non-experts.
 - Never exceed 5 bullet items in one bullet_list or slots list.
 - If the slide is an opening slide and people info exists, include people in slots.
-- Keep the slide connected to the previous and next flow.
+- Do NOT include content from the previous or next slide in this slide's body. The previous/next context is for flow continuity only.
 - Write in {language}.
 
 Source document:
@@ -374,7 +374,7 @@ Elements prompt contract:
 Presentation goal: {presentation_goal}
 Target audience: {target_audience}
 Previous slide summary: {previous_slide_summary}
-Next slide goal: {next_slide_goal}
+Next slide summary: {next_slide_summary}
 User request:
 {user_request}
 
@@ -392,6 +392,7 @@ Rules:
 - If you include elements, follow the elements prompt contract exactly.
 - Do not exceed 5 bullets.
 - Use only source-backed content.
+- Do NOT include content from the previous or next slide in this slide's body. The previous/next context is for flow continuity only.
 - Write in {language}.
 
 Source document:
@@ -404,7 +405,7 @@ Return valid JSON only with keys: passed, score, checklist, issues, feedback.
 
 Language: {language}
 Previous slide summary: {previous_slide_summary}
-Next slide goal: {next_slide_goal}
+Next slide summary: {next_slide_summary}
 Slide contract:
 {slide_info_json}
 Slide output:
@@ -476,14 +477,14 @@ class MockLLMClient(LLMClient):
         content: str,
         language: str,
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _GENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
             target_audience=target_audience,
             previous_slide_summary=previous_slide_summary or "(none)",
-            next_slide_goal=next_slide_goal or "(none)",
+            next_slide_summary=next_slide_summary or "(none)",
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             content=content[:5000],
             language=language,
@@ -573,14 +574,14 @@ class MockLLMClient(LLMClient):
         slide_info: dict[str, Any],
         slide_output: dict[str, Any],
         previous_slide_summary: str,
-        next_slide_goal: str,
+        next_slide_summary: str,
         language: str,
     ) -> dict[str, Any]:
         bullet_count = len(_extract_slide_bullets(slide_output))
         issues: list[str] = []
         if bullet_count > 5:
             issues.append("bullet 수가 5개를 초과함")
-        if not next_slide_goal and slide_info.get("role") == "summary":
+        if not next_slide_summary and slide_info.get("role") == "summary":
             issues.append("다음 슬라이드로 이어질 흐름이 없음")
         return {
             "passed": bullet_count <= 5,
@@ -591,7 +592,7 @@ class MockLLMClient(LLMClient):
                 f"bullet 5개 이하 여부: {'예' if bullet_count <= 5 else '아니오'}",
                 "이전 슬라이드와 중복 최소화 여부: 예",
                 "비전공자도 이해 가능한 명확성: 예",
-                f"다음 슬라이드로 이어질 흐름 존재 여부: {'예' if next_slide_goal or slide_info.get('role') == 'summary' else '아니오'}",
+                f"다음 슬라이드로 이어질 흐름 존재 여부: {'예' if next_slide_summary or slide_info.get('role') == 'summary' else '아니오'}",
             ],
             "issues": issues,
             "feedback": "슬라이드 내용이 명확하고 목표에 부합합니다.",
@@ -667,14 +668,14 @@ class MockLLMClient(LLMClient):
         user_request: str,
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _REGENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
             target_audience=target_audience,
             previous_slide_summary=previous_slide_summary or "(none)",
-            next_slide_goal=next_slide_goal or "(none)",
+            next_slide_summary=next_slide_summary or "(none)",
             user_request=user_request or "(none)",
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             current_slide_json=json.dumps(current_slide, ensure_ascii=False)[:5000],
@@ -695,7 +696,7 @@ class MockLLMClient(LLMClient):
                 content=content,
                 language=language,
                 previous_slide_summary=previous_slide_summary,
-                next_slide_goal=next_slide_goal,
+                next_slide_summary=next_slide_summary,
                 request_label=request_label,
             )
         label = _normalize_request_label(request_label, f"regenerate slide: {slide_info.get('title', '')}")
@@ -767,14 +768,14 @@ class OpenAICompatibleLLMClient(LLMClient):
         content: str,
         language: str,
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _GENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
             target_audience=target_audience,
             previous_slide_summary=previous_slide_summary or "(none)",
-            next_slide_goal=next_slide_goal or "(none)",
+            next_slide_summary=next_slide_summary or "(none)",
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             content=content[:5000],
             language=language,
@@ -791,13 +792,13 @@ class OpenAICompatibleLLMClient(LLMClient):
         slide_info: dict[str, Any],
         slide_output: dict[str, Any],
         previous_slide_summary: str,
-        next_slide_goal: str,
+        next_slide_summary: str,
         language: str,
     ) -> dict[str, Any]:
         prompt = _EVALUATE_SLIDE_PROMPT.format(
             language=language,
             previous_slide_summary=previous_slide_summary or "(none)",
-            next_slide_goal=next_slide_goal or "(none)",
+            next_slide_summary=next_slide_summary or "(none)",
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             slide_output_json=json.dumps(slide_output, ensure_ascii=False),
         )
@@ -848,14 +849,14 @@ class OpenAICompatibleLLMClient(LLMClient):
         user_request: str,
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
-        next_slide_goal: str = "",
+        next_slide_summary: str = "",
         request_label: str = "",
     ) -> dict[str, Any]:
         prompt = _REGENERATE_SLIDE_PROMPT.format(
             presentation_goal=presentation_goal,
             target_audience=target_audience,
             previous_slide_summary=previous_slide_summary or "(none)",
-            next_slide_goal=next_slide_goal or "(none)",
+            next_slide_summary=next_slide_summary or "(none)",
             user_request=user_request or "(none)",
             slide_info_json=json.dumps(slide_info, ensure_ascii=False),
             current_slide_json=json.dumps(current_slide, ensure_ascii=False)[:5000],

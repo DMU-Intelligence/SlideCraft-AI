@@ -82,7 +82,7 @@ class RegenerationService:
             "해당 문서를 읽지 않았거나 배경지식이 많지 않을 수 있는 일반 청중",
         )
         previous_slide_summary = _slide_summary(state.slides, idx - 1)
-        next_slide_goal = state.outline[titles[idx + 1]].goal if idx < len(titles) - 1 else ""
+        next_slide_summary = state.outline[titles[idx + 1]].description if idx < len(titles) - 1 else ""
         slide_info = item.model_dump()
         slide_info["title"] = slide_title
 
@@ -96,7 +96,7 @@ class RegenerationService:
                 user_request=user_request,
                 current_slide=current_slide,
                 previous_slide_summary=previous_slide_summary,
-                next_slide_goal=next_slide_goal,
+                next_slide_summary=next_slide_summary,
                 request_label=f"regenerate slide {idx + 1} project {state.project_id}: {slide_title}",
             )
         else:
@@ -107,7 +107,7 @@ class RegenerationService:
                 content=state.content,
                 language=state.language,
                 previous_slide_summary=previous_slide_summary,
-                next_slide_goal=next_slide_goal,
+                next_slide_summary=next_slide_summary,
                 request_label=f"slide {idx + 1} project {state.project_id}: {slide_title}",
             )
 
