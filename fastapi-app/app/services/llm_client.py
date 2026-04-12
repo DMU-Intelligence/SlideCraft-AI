@@ -609,9 +609,9 @@ Step 2 - FILL the selected template:
 - Use the selected Template Page's elements structure as-is.
 - For each "text_box" element in the Template, replace only its "text" field.
 - For each "bullet_list" element in the Template, replace only its "items" field.
-- For each "shape" element in the Template, keep it unchanged.
+- For each "shape" or "line" element in the Template, keep it unchanged.
 - NEVER change x, y, w, h coordinates.
-- NEVER change font_size, font_color, font_bold, font_name, fill_color, bullet_color, bullet_char, align, shape_type.
+- NEVER change font_size, font_color, font_bold, font_name, fill_color, bullet_color, bullet_char, align, shape_type, line_color, line_width.
 - ONLY change "text" fields in text_box elements and "items" fields in bullet_list elements.
 - If the Generated Slide has more content than the Template can hold, summarize or merge content to fit.
 - If the Generated Slide has less content, use only what is available.

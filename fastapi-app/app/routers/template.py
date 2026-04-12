@@ -23,6 +23,7 @@ _extractor = TemplateExtractor()
 async def upload_template(
     file: UploadFile = File(...),
     title: str = Form(...),
+    debug: bool = Form(False),
 ) -> dict[str, object]:
     try:
         safe_title = sanitize_template_name(title)
@@ -33,10 +34,14 @@ async def upload_template(
     template_dir.mkdir(parents=True, exist_ok=True)
 
     temp_path = template_dir / f"_temp_upload_{uuid.uuid4().hex}.pptx"
+    debug_path = template_dir / f"_{safe_title}_extract_debug.json"
 
     try:
         await save_upload_file(file, str(temp_path))
-        template_data = _extractor.extract(str(temp_path))
+        template_data = _extractor.extract(
+            str(temp_path),
+            debug_output_path=str(debug_path) if debug else None,
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"PPTX 파싱 실패: {exc}") from exc
     finally:
@@ -51,6 +56,7 @@ async def upload_template(
     return {
         "template_name": safe_title,
         "template_path": str(template_path),
+        "debug_path": str(debug_path) if debug else None,
         "template": template_data,
         "slide_count": len(template_data),
     }

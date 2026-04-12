@@ -3,10 +3,46 @@
     "background": "#EDEDED",
     "elements": [
       {
-        "x": 3.08,
-        "y": 4.65,
-        "w": 9.05,
-        "h": 1.23,
+        "x": 1.71,
+        "y": 1.98,
+        "w": 9.9,
+        "h": 2.19,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 1.71,
+        "y": 4.5,
+        "w": 9.9,
+        "h": 2.19,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 2.05,
+        "y": 2.2,
+        "w": 0.64,
+        "h": 0.24,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 2.05,
+        "y": 4.73,
+        "w": 0.64,
+        "h": 0.24,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 2.05,
+        "y": 3.1,
+        "w": 6.03,
+        "h": 0.82,
         "type": "bullet_list",
         "items": [
           "이 레이아웃은 주로 텍스트로 구성되어 있으며,",
@@ -20,10 +56,27 @@
         "font_color": "#272626"
       },
       {
-        "x": 3.08,
-        "y": 3.87,
-        "w": 3.68,
-        "h": 0.57,
+        "x": 2.05,
+        "y": 5.63,
+        "w": 6.03,
+        "h": 0.82,
+        "type": "bullet_list",
+        "items": [
+          "이 레이아웃은 주로 텍스트로 이루어져 있으며,",
+          "디자인의 초점이 텍스트에 맞추어져 있습니다.",
+          "정보 전달에 있어 글자와 문장이 핵심적인 역할을 하고 있습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 2.05,
+        "y": 2.58,
+        "w": 2.45,
+        "h": 0.38,
         "type": "text_box",
         "text": "시각적 요소의 최소화",
         "font_name": "Noto Sans Kr Bold",
@@ -33,10 +86,23 @@
         "align": "left"
       },
       {
-        "x": 3.27,
-        "y": 3.32,
-        "w": 0.58,
-        "h": 0.28,
+        "x": 2.05,
+        "y": 5.11,
+        "w": 3.97,
+        "h": 0.38,
+        "type": "text_box",
+        "text": "내용을 쉽게 읽고 이해할 수 있도록",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 2.18,
+        "y": 2.21,
+        "w": 0.38,
+        "h": 0.19,
         "type": "text_box",
         "text": "첫번째",
         "font_name": "Noto Sans Kr",
@@ -46,10 +112,10 @@
         "align": "center"
       },
       {
-        "x": 3.27,
-        "y": 7.11,
-        "w": 0.58,
-        "h": 0.28,
+        "x": 2.18,
+        "y": 4.74,
+        "w": 0.38,
+        "h": 0.19,
         "type": "text_box",
         "text": "두번째",
         "font_name": "Noto Sans Kr",
@@ -59,10 +125,10 @@
         "align": "center"
       },
       {
-        "x": 7.35,
-        "y": 1.26,
-        "w": 5.3,
-        "h": 0.94,
+        "x": 4.9,
+        "y": 0.84,
+        "w": 3.53,
+        "h": 0.63,
         "type": "text_box",
         "text": "텍스트 위주",
         "font_name": "Noto Sans Kr Bold",
@@ -72,10 +138,32 @@
         "align": "center"
       },
       {
-        "x": 9.27,
-        "y": 0.76,
-        "w": 1.46,
+        "x": 6.08,
+        "y": 0.47,
+        "w": 1.17,
+        "h": 0.36,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 6.19,
+        "y": 0.42,
+        "w": 0.95,
         "h": 0.37,
+        "type": "text_box",
+        "text": "01",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_bold": false,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 6.18,
+        "y": 0.51,
+        "w": 0.97,
+        "h": 0.25,
         "type": "text_box",
         "text": "01",
         "font_name": "Noto Sans Kr Bold",
@@ -90,10 +178,95 @@
     "background": "#EDEDED",
     "elements": [
       {
-        "x": 1.12,
-        "y": 5.28,
-        "w": 5.03,
-        "h": 2.06,
+        "x": 0.48,
+        "y": 2.28,
+        "w": 3.89,
+        "h": 3.0,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 4.72,
+        "y": 2.28,
+        "w": 3.89,
+        "h": 3.0,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 8.96,
+        "y": 2.28,
+        "w": 3.89,
+        "h": 3.0,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 0.75,
+        "y": 2.62,
+        "w": 0.64,
+        "h": 0.24,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 6.08,
+        "y": 0.47,
+        "w": 1.17,
+        "h": 0.36,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 6.19,
+        "y": 0.42,
+        "w": 0.95,
+        "h": 0.37,
+        "type": "text_box",
+        "text": "01",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_bold": false,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 0.0,
+        "y": 6.01,
+        "w": 13.33,
+        "h": 1.49,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 4.99,
+        "y": 2.62,
+        "w": 0.64,
+        "h": 0.24,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 9.23,
+        "y": 2.62,
+        "w": 0.64,
+        "h": 0.24,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 0.75,
+        "y": 3.52,
+        "w": 3.36,
+        "h": 1.37,
         "type": "bullet_list",
         "items": [
           "이 레이아웃은 주로 텍스트로",
@@ -109,10 +282,10 @@
         "font_color": "#272626"
       },
       {
-        "x": 1.12,
-        "y": 4.5,
-        "w": 3.68,
-        "h": 0.57,
+        "x": 0.75,
+        "y": 3.0,
+        "w": 2.45,
+        "h": 0.38,
         "type": "text_box",
         "text": "시각적 요소의 최소화",
         "font_name": "Noto Sans Kr Bold",
@@ -122,10 +295,10 @@
         "align": "left"
       },
       {
-        "x": 1.32,
-        "y": 3.96,
-        "w": 0.58,
-        "h": 0.28,
+        "x": 0.88,
+        "y": 2.64,
+        "w": 0.38,
+        "h": 0.19,
         "type": "text_box",
         "text": "첫번째",
         "font_name": "Noto Sans Kr",
@@ -135,10 +308,10 @@
         "align": "center"
       },
       {
-        "x": 7.35,
-        "y": 1.26,
-        "w": 5.3,
-        "h": 0.94,
+        "x": 4.9,
+        "y": 0.84,
+        "w": 3.53,
+        "h": 0.63,
         "type": "text_box",
         "text": "텍스트 위주",
         "font_name": "Noto Sans Kr Bold",
@@ -148,10 +321,10 @@
         "align": "center"
       },
       {
-        "x": 9.27,
-        "y": 0.76,
-        "w": 1.46,
-        "h": 0.37,
+        "x": 6.18,
+        "y": 0.51,
+        "w": 0.97,
+        "h": 0.25,
         "type": "text_box",
         "text": "01",
         "font_name": "Noto Sans Kr Bold",
@@ -161,10 +334,26 @@
         "align": "center"
       },
       {
-        "x": 7.48,
-        "y": 5.28,
-        "w": 5.03,
-        "h": 2.06,
+        "x": 2.92,
+        "y": 6.39,
+        "w": 7.49,
+        "h": 0.54,
+        "type": "bullet_list",
+        "items": [
+          "내용을 쉽게 읽고 이해할 수 있도록문장 간의 연결성과 일관성을 유지하며,",
+          "각 문단은 명확한 주제를 중심으로 구성되어 있습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#FAFAFA"
+      },
+      {
+        "x": 4.99,
+        "y": 3.52,
+        "w": 3.36,
+        "h": 1.37,
         "type": "text_box",
         "text": "텍스트의 배치와 스타일은 독자의 읽기 경험을 최적화하도록 세심하게 고려되었습니다. 각 문장은 논리적인 순서로 배열되어 있으며, 불필요한 장식 요소를 최소화하여 정보의 전달에 집중하고 있습니다.",
         "font_name": "Noto Sans Kr",
@@ -174,10 +363,10 @@
         "align": "left"
       },
       {
-        "x": 7.48,
-        "y": 4.5,
-        "w": 3.68,
-        "h": 0.57,
+        "x": 4.99,
+        "y": 3.0,
+        "w": 2.45,
+        "h": 0.38,
         "type": "text_box",
         "text": "내용을 쉽게",
         "font_name": "Noto Sans Kr Bold",
@@ -187,12 +376,56 @@
         "align": "left"
       },
       {
-        "x": 7.68,
-        "y": 3.96,
-        "w": 0.58,
-        "h": 0.28,
+        "x": 5.12,
+        "y": 2.64,
+        "w": 0.38,
+        "h": 0.19,
         "type": "text_box",
         "text": "두번째",
+        "font_name": "Noto Sans Kr",
+        "font_size": 15,
+        "font_bold": false,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      },
+      {
+        "x": 9.23,
+        "y": 3.52,
+        "w": 3.36,
+        "h": 1.1,
+        "type": "bullet_list",
+        "items": [
+          "정보 전달에 있어 글자와 문장이 핵심적인",
+          "역할을 하고 있습니다. 텍스트의 흐름과",
+          "구조가 명확하게 정리되어 있어 독자가",
+          "쉽게 내용을 파악할 수 있습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 9.23,
+        "y": 3.0,
+        "w": 2.45,
+        "h": 0.38,
+        "type": "text_box",
+        "text": "읽고 이해하기 쉽게",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 9.36,
+        "y": 2.64,
+        "w": 0.38,
+        "h": 0.19,
+        "type": "text_box",
+        "text": "세번째",
         "font_name": "Noto Sans Kr",
         "font_size": 15,
         "font_bold": false,
@@ -205,10 +438,75 @@
     "background": "#EDEDED",
     "elements": [
       {
-        "x": 4.49,
-        "y": 4.68,
-        "w": 2.03,
-        "h": 0.57,
+        "x": 6.08,
+        "y": 0.47,
+        "w": 1.17,
+        "h": 0.36,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#272626"
+      },
+      {
+        "x": 6.19,
+        "y": 0.42,
+        "w": 0.95,
+        "h": 0.37,
+        "type": "text_box",
+        "text": "01",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_bold": false,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 4.83,
+        "y": 2.11,
+        "w": 3.68,
+        "h": 3.68,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 1.83,
+        "y": 2.11,
+        "w": 3.68,
+        "h": 3.68,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 7.89,
+        "y": 2.11,
+        "w": 3.68,
+        "h": 3.68,
+        "type": "shape",
+        "shape_type": "rectangle",
+        "fill_color": "#FAFAFA"
+      },
+      {
+        "x": 2.92,
+        "y": 6.39,
+        "w": 7.49,
+        "h": 0.54,
+        "type": "bullet_list",
+        "items": [
+          "마지막으로, 독자들이 추가로 참고할 수 있는 자료나 링크를 제공하여",
+          "더 깊이 있는 학습을 장려하면 좋겠습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 2.99,
+        "y": 3.12,
+        "w": 1.36,
+        "h": 0.38,
         "type": "text_box",
         "text": "키워드 정의",
         "font_name": "Noto Sans Kr Bold",
@@ -218,10 +516,10 @@
         "align": "left"
       },
       {
-        "x": 8.98,
-        "y": 4.68,
-        "w": 2.03,
-        "h": 0.57,
+        "x": 5.99,
+        "y": 3.12,
+        "w": 1.36,
+        "h": 0.38,
         "type": "text_box",
         "text": "최신 트렌드",
         "font_name": "Noto Sans Kr Bold",
@@ -231,10 +529,23 @@
         "align": "left"
       },
       {
-        "x": 7.8,
-        "y": 6.3,
-        "w": 4.4,
-        "h": 0.81,
+        "x": 9.48,
+        "y": 3.12,
+        "w": 0.51,
+        "h": 0.38,
+        "type": "text_box",
+        "text": "예시",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 5.2,
+        "y": 4.2,
+        "w": 2.94,
+        "h": 0.54,
         "type": "bullet_list",
         "items": [
           "최신 트렌드를 소개하면",
@@ -247,10 +558,10 @@
         "font_color": "#272626"
       },
       {
-        "x": 3.31,
-        "y": 6.3,
-        "w": 4.4,
-        "h": 0.81,
+        "x": 2.2,
+        "y": 4.2,
+        "w": 2.94,
+        "h": 0.54,
         "type": "bullet_list",
         "items": [
           "키워드 자체의 정의와",
@@ -263,10 +574,10 @@
         "font_color": "#272626"
       },
       {
-        "x": 12.4,
-        "y": 6.3,
-        "w": 0.93,
-        "h": 0.81,
+        "x": 8.27,
+        "y": 4.2,
+        "w": 2.94,
+        "h": 0.54,
         "type": "bullet_list",
         "items": [
           "예키워드가 실제로 어떻게",
@@ -279,10 +590,10 @@
         "font_color": "#272626"
       },
       {
-        "x": 7.35,
-        "y": 1.26,
-        "w": 5.3,
-        "h": 0.94,
+        "x": 4.9,
+        "y": 0.84,
+        "w": 3.53,
+        "h": 0.63,
         "type": "text_box",
         "text": "키워드 위주",
         "font_name": "Noto Sans Kr Bold",
@@ -292,10 +603,10 @@
         "align": "center"
       },
       {
-        "x": 9.27,
-        "y": 0.76,
-        "w": 1.46,
-        "h": 0.37,
+        "x": 6.18,
+        "y": 0.51,
+        "w": 0.97,
+        "h": 0.25,
         "type": "text_box",
         "text": "03",
         "font_name": "Noto Sans Kr Bold",

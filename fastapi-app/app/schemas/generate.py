@@ -101,6 +101,52 @@ class PositionedElement(BaseModel):
         return self
 
 
+class LineElement(BaseModel):
+    type: Literal["line"] = "line"
+    x: float
+    y: float
+    w: float
+    h: float
+    line_color: str = "#D9D9D9"
+    line_width: float = Field(default=1.0, gt=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _upgrade_legacy_coordinates(cls, data: Any) -> Any:
+        return PositionedElement._upgrade_legacy_coordinates(data)
+
+    @property
+    def left(self) -> float:
+        return self.x
+
+    @property
+    def top(self) -> float:
+        return self.y
+
+    @property
+    def width(self) -> float:
+        return self.w
+
+    @property
+    def height(self) -> float:
+        return self.h
+
+    @model_validator(mode="after")
+    def _validate_bounds(self) -> "LineElement":
+        if self.w == 0 and self.h == 0:
+            raise ValueError("Line must have a non-zero width or height.")
+        if self.x < 0 or self.y < 0:
+            raise ValueError("Element coordinates must be non-negative.")
+
+        end_x = self.x + self.w
+        end_y = self.y + self.h
+        if min(self.x, end_x) < 0 or max(self.x, end_x) > SLIDE_WIDTH_INCHES + 0.01:
+            raise ValueError("Line exceeds slide width.")
+        if min(self.y, end_y) < 0 or max(self.y, end_y) > SLIDE_HEIGHT_INCHES + 0.01:
+            raise ValueError("Line exceeds slide height.")
+        return self
+
+
 class TextBoxElement(PositionedElement):
     type: Literal["text_box"] = "text_box"
     text: str
@@ -138,7 +184,7 @@ class BulletListElement(PositionedElement):
 
 
 SlideElement = Annotated[
-    Union[TextBoxElement, ShapeElement, BulletListElement],
+    Union[TextBoxElement, ShapeElement, BulletListElement, LineElement],
     Field(discriminator="type"),
 ]
 

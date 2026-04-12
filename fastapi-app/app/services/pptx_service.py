@@ -5,13 +5,14 @@ from typing import Any
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE, MSO_CONNECTOR_TYPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
 from ..models.project_state import ProjectState
 from ..schemas.generate import (
     BulletListElement,
+    LineElement,
     PageLayout,
     ShapeElement,
     SlideContent,
@@ -210,6 +211,19 @@ def _render_bullet_list(slide: Any, elem: BulletListElement) -> None:
         body.font.color.rgb = font_rgb
 
 
+def _render_line(slide: Any, elem: LineElement) -> None:
+    line = slide.shapes.add_connector(
+        MSO_CONNECTOR_TYPE.STRAIGHT,
+        Inches(elem.x),
+        Inches(elem.y),
+        Inches(elem.x + elem.w),
+        Inches(elem.y + elem.h),
+    )
+    line.line.fill.solid()
+    line.line.fill.fore_color.rgb = _hex_to_rgb(elem.line_color)
+    line.line.width = Pt(elem.line_width)
+
+
 def _render_element(slide: Any, element: SlideElement) -> None:
     if isinstance(element, TextBoxElement):
         _render_text_box(slide, element)
@@ -217,6 +231,8 @@ def _render_element(slide: Any, element: SlideElement) -> None:
         _render_shape(slide, element)
     elif isinstance(element, BulletListElement):
         _render_bullet_list(slide, element)
+    elif isinstance(element, LineElement):
+        _render_line(slide, element)
 
 
 def _coerce_list(value: Any) -> list[str]:
