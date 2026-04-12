@@ -9,6 +9,7 @@ class RegenerateSlideRequest(BaseModel):
     project_id: int
     slide_title: str      # outline key (슬라이드 제목)
     user_request: str = ""  # 수정 요청 사항
+    template_name: str | None = None
 
 
 class RegenerateSlideResponse(BaseModel):

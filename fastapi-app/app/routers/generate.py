@@ -49,6 +49,9 @@ async def generate_slides(req: GenerateSlidesRequest, request: Request) -> Gener
         raise HTTPException(status_code=404, detail="project not found")
     try:
         slides = await slide_generator.generate_slides(state)
+        slides = await slide_generator.add_just_template(state, slides, req.template_name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"템플릿 '{req.template_name}'을 찾을 수 없습니다.")
     except ValueError as exc:
         state.touch()
         await repo.upsert(state)
@@ -104,6 +107,9 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
 
     try:
         slides = await slide_generator.generate_slides(state)
+        slides = await slide_generator.add_just_template(state, slides, req.template_name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"템플릿 '{req.template_name}'을 찾을 수 없습니다.")
     except ValueError as exc:
         state.touch()
         await repo.upsert(state)

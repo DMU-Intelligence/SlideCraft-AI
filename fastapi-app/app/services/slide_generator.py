@@ -6,6 +6,7 @@ from ..models.project_state import ProjectState
 from ..schemas.generate import PageLayout, SlideContent
 from .json_validation import validate_outline_payload, validate_slides_payload
 from .llm_client import LLMClient
+from .template_store import load_template, sanitize_template_name
 
 
 def _summarize_slide_for_context(slide: SlideContent | None) -> str:
@@ -286,3 +287,33 @@ class SlideGenerator:
         slides = [SlideContent.model_validate(slide) for slide in raw_slides]
         state.metadata["people_info"] = people
         return slides
+
+    async def add_just_template(
+        self,
+        state: ProjectState,
+        slides: list[SlideContent],
+        template_name: str | None,
+    ) -> list[SlideContent]:
+        if template_name is None or not template_name.strip():
+            return slides
+
+        template_pages = load_template(sanitize_template_name(template_name))
+        if not template_pages:
+            raise ValueError("템플릿에 콘텐츠 페이지가 없습니다.")
+
+        raw_slides = [slide.model_dump() for slide in slides]
+
+        for index in range(1, len(raw_slides) - 1):
+            slide_title = str(raw_slides[index].get("title", ""))
+            raw_slides[index] = await self._llm_client.apply_template(
+                generated_slide=raw_slides[index],
+                template_pages=template_pages,
+                language=state.language,
+                request_label=f"apply_template slide {index} project {state.project_id}: {slide_title}",
+            )
+
+        slides_ok, slides_error = validate_slides_payload(raw_slides)
+        if not slides_ok:
+            raise ValueError(f"{slides_error} JSON이 잘못되었습니다.")
+
+        return [SlideContent.model_validate(slide) for slide in raw_slides]

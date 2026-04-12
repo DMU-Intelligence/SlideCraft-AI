@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..models.project_state import ProjectState
 from ..schemas.generate import OutlineItem, SlideContent
 from .llm_client import LLMClient
+from .template_store import load_template, sanitize_template_name
 
 
 def _slide_summary(slides: list[SlideContent], index: int) -> str:
@@ -63,6 +64,7 @@ class RegenerationService:
         state: ProjectState,
         slide_title: str,
         user_request: str = "",
+        template_name: str | None = None,
     ) -> SlideContent:
         if slide_title not in state.outline:
             raise ValueError(f"'{slide_title}' 슬라이드가 outline에 없습니다.")
@@ -111,7 +113,24 @@ class RegenerationService:
                 request_label=f"slide {idx + 1} project {state.project_id}: {slide_title}",
             )
 
-        updated = SlideContent.model_validate(_normalize_slide(raw, slide_info))
+        normalized = _normalize_slide(raw, slide_info)
+        updated = SlideContent.model_validate(normalized)
+
+        if template_name is not None and template_name.strip():
+            template_pages = load_template(sanitize_template_name(template_name))
+            if not template_pages:
+                raise ValueError("템플릿에 콘텐츠 페이지가 없습니다.")
+            updated = SlideContent.model_validate(
+                await self._llm_client.apply_template(
+                    generated_slide=updated.model_dump(),
+                    template_pages=template_pages,
+                    language=state.language,
+                    request_label=(
+                        f"apply_template regenerate slide {idx + 1} "
+                        f"project {state.project_id}: {slide_title}"
+                    ),
+                )
+            )
 
         for index, slide in enumerate(state.slides):
             if slide.title == slide_title:

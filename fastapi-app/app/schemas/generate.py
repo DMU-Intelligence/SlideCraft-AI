@@ -232,6 +232,7 @@ class GenerateOutlineResponse(BaseModel):
 
 class GenerateSlidesRequest(BaseModel):
     project_id: int
+    template_name: str | None = None
 
 
 class GenerateSlidesResponse(BaseModel):
@@ -250,6 +251,7 @@ class GenerateNotesResponse(BaseModel):
 
 class GenerateAllRequest(BaseModel):
     project_id: int
+    template_name: str | None = None
 
 
 class GenerateAllResponse(BaseModel):

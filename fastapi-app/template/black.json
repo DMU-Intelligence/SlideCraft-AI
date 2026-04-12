@@ -1,0 +1,309 @@
+[
+  {
+    "background": "#EDEDED",
+    "elements": [
+      {
+        "x": 3.08,
+        "y": 4.65,
+        "w": 9.05,
+        "h": 1.23,
+        "type": "bullet_list",
+        "items": [
+          "이 레이아웃은 주로 텍스트로 구성되어 있으며,",
+          "텍스트가 중심이 되어 디자인이 이루어져 있습니다.",
+          "이 레이아웃은 글자와 문장을 통해 정보를 전달하는 데 중점을 두고 있습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 3.08,
+        "y": 3.87,
+        "w": 3.68,
+        "h": 0.57,
+        "type": "text_box",
+        "text": "시각적 요소의 최소화",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 3.27,
+        "y": 3.32,
+        "w": 0.58,
+        "h": 0.28,
+        "type": "text_box",
+        "text": "첫번째",
+        "font_name": "Noto Sans Kr",
+        "font_size": 15,
+        "font_bold": false,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      },
+      {
+        "x": 3.27,
+        "y": 7.11,
+        "w": 0.58,
+        "h": 0.28,
+        "type": "text_box",
+        "text": "두번째",
+        "font_name": "Noto Sans Kr",
+        "font_size": 15,
+        "font_bold": false,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      },
+      {
+        "x": 7.35,
+        "y": 1.26,
+        "w": 5.3,
+        "h": 0.94,
+        "type": "text_box",
+        "text": "텍스트 위주",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 50,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 9.27,
+        "y": 0.76,
+        "w": 1.46,
+        "h": 0.37,
+        "type": "text_box",
+        "text": "01",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 20,
+        "font_bold": true,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      }
+    ]
+  },
+  {
+    "background": "#EDEDED",
+    "elements": [
+      {
+        "x": 1.12,
+        "y": 5.28,
+        "w": 5.03,
+        "h": 2.06,
+        "type": "bullet_list",
+        "items": [
+          "이 레이아웃은 주로 텍스트로",
+          "구성되어 있으며, 텍스트가 중심이 되어",
+          "디자인이 이루어져 있습니다.",
+          "이 레이아웃은 글자와 문장을 통해 정보를",
+          "전달하는 데 중점을 두고 있습니다."
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 1.12,
+        "y": 4.5,
+        "w": 3.68,
+        "h": 0.57,
+        "type": "text_box",
+        "text": "시각적 요소의 최소화",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 1.32,
+        "y": 3.96,
+        "w": 0.58,
+        "h": 0.28,
+        "type": "text_box",
+        "text": "첫번째",
+        "font_name": "Noto Sans Kr",
+        "font_size": 15,
+        "font_bold": false,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      },
+      {
+        "x": 7.35,
+        "y": 1.26,
+        "w": 5.3,
+        "h": 0.94,
+        "type": "text_box",
+        "text": "텍스트 위주",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 50,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 9.27,
+        "y": 0.76,
+        "w": 1.46,
+        "h": 0.37,
+        "type": "text_box",
+        "text": "01",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 20,
+        "font_bold": true,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      },
+      {
+        "x": 7.48,
+        "y": 5.28,
+        "w": 5.03,
+        "h": 2.06,
+        "type": "text_box",
+        "text": "텍스트의 배치와 스타일은 독자의 읽기 경험을 최적화하도록 세심하게 고려되었습니다. 각 문장은 논리적인 순서로 배열되어 있으며, 불필요한 장식 요소를 최소화하여 정보의 전달에 집중하고 있습니다.",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_bold": false,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 7.48,
+        "y": 4.5,
+        "w": 3.68,
+        "h": 0.57,
+        "type": "text_box",
+        "text": "내용을 쉽게",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 7.68,
+        "y": 3.96,
+        "w": 0.58,
+        "h": 0.28,
+        "type": "text_box",
+        "text": "두번째",
+        "font_name": "Noto Sans Kr",
+        "font_size": 15,
+        "font_bold": false,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      }
+    ]
+  },
+  {
+    "background": "#EDEDED",
+    "elements": [
+      {
+        "x": 4.49,
+        "y": 4.68,
+        "w": 2.03,
+        "h": 0.57,
+        "type": "text_box",
+        "text": "키워드 정의",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 8.98,
+        "y": 4.68,
+        "w": 2.03,
+        "h": 0.57,
+        "type": "text_box",
+        "text": "최신 트렌드",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 30,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "left"
+      },
+      {
+        "x": 7.8,
+        "y": 6.3,
+        "w": 4.4,
+        "h": 0.81,
+        "type": "bullet_list",
+        "items": [
+          "최신 트렌드를 소개하면",
+          "현재 상황을 파악하는 데 도움"
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 3.31,
+        "y": 6.3,
+        "w": 4.4,
+        "h": 0.81,
+        "type": "bullet_list",
+        "items": [
+          "키워드 자체의 정의와",
+          "중요성을 설명하는 부분"
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 12.4,
+        "y": 6.3,
+        "w": 0.93,
+        "h": 0.81,
+        "type": "bullet_list",
+        "items": [
+          "예키워드가 실제로 어떻게",
+          "적용되는지 보여주는 것도 유익"
+        ],
+        "bullet_char": "-",
+        "bullet_color": "#2563EB",
+        "font_name": "Noto Sans Kr",
+        "font_size": 20,
+        "font_color": "#272626"
+      },
+      {
+        "x": 7.35,
+        "y": 1.26,
+        "w": 5.3,
+        "h": 0.94,
+        "type": "text_box",
+        "text": "키워드 위주",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 50,
+        "font_bold": true,
+        "font_color": "#272626",
+        "align": "center"
+      },
+      {
+        "x": 9.27,
+        "y": 0.76,
+        "w": 1.46,
+        "h": 0.37,
+        "type": "text_box",
+        "text": "03",
+        "font_name": "Noto Sans Kr Bold",
+        "font_size": 20,
+        "font_bold": true,
+        "font_color": "#FAFAFA",
+        "align": "center"
+      }
+    ]
+  }
+]

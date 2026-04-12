@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -168,6 +169,186 @@ def _pick_theme(slide_info: dict[str, Any]) -> str:
     return "clean_light"
 
 
+def _dedupe_preserve(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = str(value).strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _collect_template_content(generated_slide: dict[str, Any]) -> tuple[list[str], list[list[str]]]:
+    texts: list[str] = []
+    bullet_groups: list[list[str]] = []
+
+    title = str(generated_slide.get("title", "")).strip()
+    if title:
+        texts.append(title)
+
+    for page in generated_slide.get("pages", []):
+        if not isinstance(page, dict):
+            continue
+
+        slots = page.get("slots", {})
+        if isinstance(slots, dict):
+            for key in ("eyebrow", "headline", "body", "highlight", "title_box_label"):
+                value = slots.get(key)
+                if isinstance(value, str) and value.strip():
+                    texts.append(value.strip())
+            for key in ("bullets", "left_points", "right_points", "people"):
+                value = slots.get(key)
+                if not isinstance(value, list):
+                    continue
+                items = [str(item).strip() for item in value if str(item).strip()]
+                if items:
+                    bullet_groups.append(items[:5])
+
+        for element in page.get("elements", []):
+            if not isinstance(element, dict):
+                continue
+            element_type = element.get("type")
+            if element_type == "text_box":
+                value = str(element.get("text", "")).strip()
+                if value:
+                    texts.append(value)
+            elif element_type == "bullet_list":
+                items = [str(item).strip() for item in element.get("items", []) if str(item).strip()]
+                if items:
+                    bullet_groups.append(items[:5])
+
+    deduped_groups: list[list[str]] = []
+    seen_groups: set[tuple[str, ...]] = set()
+    for items in bullet_groups:
+        key = tuple(items)
+        if key in seen_groups:
+            continue
+        seen_groups.add(key)
+        deduped_groups.append(items)
+
+    return _dedupe_preserve(texts), deduped_groups
+
+
+def _score_template_page(
+    page: dict[str, Any],
+    generated_text_count: int,
+    generated_bullet_group_count: int,
+    generated_bullet_item_count: int,
+) -> int:
+    text_box_count = 0
+    bullet_list_count = 0
+    shape_count = 0
+
+    for element in page.get("elements", []):
+        if not isinstance(element, dict):
+            continue
+        element_type = element.get("type")
+        if element_type == "text_box":
+            text_box_count += 1
+        elif element_type == "bullet_list":
+            bullet_list_count += 1
+        elif element_type == "shape":
+            shape_count += 1
+
+    score = 0
+    score -= abs(bullet_list_count - generated_bullet_group_count) * 6
+    score -= abs(text_box_count - generated_text_count) * 2
+
+    if generated_bullet_group_count and bullet_list_count:
+        score += 6
+    if generated_bullet_group_count == 0 and bullet_list_count == 0:
+        score += 3
+    if generated_bullet_item_count >= 4 and bullet_list_count:
+        score += 2
+    if shape_count:
+        score += 1
+
+    return score
+
+
+def _apply_template_locally(
+    generated_slide: dict[str, Any],
+    template_pages: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not template_pages:
+        raise ValueError("템플릿에 콘텐츠 페이지가 없습니다.")
+
+    texts, bullet_groups = _collect_template_content(generated_slide)
+    generated_text_count = max(1, len(texts))
+    generated_bullet_group_count = len(bullet_groups)
+    generated_bullet_item_count = sum(len(items) for items in bullet_groups)
+
+    selected_template_index = max(
+        range(len(template_pages)),
+        key=lambda index: _score_template_page(
+            template_pages[index],
+            generated_text_count,
+            generated_bullet_group_count,
+            generated_bullet_item_count,
+        ),
+    )
+
+    selected_template_page = copy.deepcopy(template_pages[selected_template_index])
+    elements = selected_template_page.get("elements", [])
+    if not isinstance(elements, list):
+        raise ValueError("템플릿 파일 형식이 올바르지 않습니다.")
+
+    fallback_title = str(generated_slide.get("title", "")).strip()
+    remaining_texts = texts[:] or ([fallback_title] if fallback_title else [])
+    remaining_bullet_groups = [items[:] for items in bullet_groups]
+    remaining_bullet_items = [item for items in bullet_groups for item in items]
+
+    for element in elements:
+        if not isinstance(element, dict):
+            continue
+
+        element_type = element.get("type")
+        if element_type == "text_box":
+            if remaining_texts:
+                element["text"] = remaining_texts.pop(0)
+            elif remaining_bullet_items:
+                element["text"] = remaining_bullet_items.pop(0)
+            else:
+                element["text"] = fallback_title
+            continue
+
+        if element_type != "bullet_list":
+            continue
+
+        if remaining_bullet_groups:
+            items = remaining_bullet_groups.pop(0)[:5]
+            remaining_bullet_items = remaining_bullet_items[len(items) :]
+        elif remaining_bullet_items:
+            items = remaining_bullet_items[:5]
+            remaining_bullet_items = remaining_bullet_items[5:]
+        elif remaining_texts:
+            items = [remaining_texts.pop(0)]
+        elif fallback_title:
+            items = [fallback_title]
+        else:
+            items = [str(item).strip() for item in element.get("items", []) if str(item).strip()][:1]
+
+        element["items"] = items[:5]
+
+    return {
+        "selected_template_index": selected_template_index,
+        "title": str(generated_slide.get("title", "")),
+        "theme": str(generated_slide.get("theme", "clean_light")),
+        "slide_variant": str(
+            generated_slide.get("slide_variant", _pick_slide_variant(generated_slide))
+        ),
+        "pages": [
+            {
+                "background": str(selected_template_page.get("background", "#FFFFFF")),
+                "elements": elements,
+            }
+        ],
+    }
+
+
 class LLMClient(ABC):
     @abstractmethod
     async def clean_text(self, raw_text: str, language: str, request_label: str = "") -> str:
@@ -233,6 +414,16 @@ class LLMClient(ABC):
         current_slide: dict[str, Any],
         previous_slide_summary: str = "",
         next_slide_summary: str = "",
+        request_label: str = "",
+    ) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def apply_template(
+        self,
+        generated_slide: dict[str, Any],
+        template_pages: list[dict[str, Any]],
+        language: str,
         request_label: str = "",
     ) -> dict[str, Any]:
         raise NotImplementedError
@@ -397,6 +588,56 @@ Rules:
 
 Source document:
 {content}
+"""
+
+_APPLY_TEMPLATE_PROMPT = """
+You select the best matching template and merge generated slide content into it.
+Return valid JSON only.
+
+You are given two JSON inputs:
+1) Generated Slide: contains the content produced by a previous LLM step.
+2) Template Pages: a list of available template page layouts extracted from an existing PPTX file.
+
+Your task:
+Step 1 - SELECT the best template:
+- Examine the Generated Slide's content structure.
+- Compare it with each Template Page's element structure.
+- Choose the Template Page whose structure best matches the Generated Slide's content.
+- A comparison-like slide should prefer a template with multiple bullet areas or multiple text blocks.
+
+Step 2 - FILL the selected template:
+- Use the selected Template Page's elements structure as-is.
+- For each "text_box" element in the Template, replace only its "text" field.
+- For each "bullet_list" element in the Template, replace only its "items" field.
+- For each "shape" element in the Template, keep it unchanged.
+- NEVER change x, y, w, h coordinates.
+- NEVER change font_size, font_color, font_bold, font_name, fill_color, bullet_color, bullet_char, align, shape_type.
+- ONLY change "text" fields in text_box elements and "items" fields in bullet_list elements.
+- If the Generated Slide has more content than the Template can hold, summarize or merge content to fit.
+- If the Generated Slide has less content, use only what is available.
+- Keep the selected Template Page background.
+
+Response schema:
+{{
+  "selected_template_index": 0,
+  "title": "string",
+  "theme": "clean_light|bold_dark|editorial",
+  "slide_variant": "{canonical_slide_variants}",
+  "pages": [
+    {{
+      "background": "#RRGGBB",
+      "elements": []
+    }}
+  ]
+}}
+
+Generated Slide:
+{generated_slide_json}
+
+Template Pages:
+{template_pages_json}
+
+Write in {language}.
 """
 
 _EVALUATE_SLIDE_PROMPT = """
@@ -704,6 +945,29 @@ class MockLLMClient(LLMClient):
         _log_llm_text("response", label, _to_log_text(response))
         return response
 
+    async def apply_template(
+        self,
+        generated_slide: dict[str, Any],
+        template_pages: list[dict[str, Any]],
+        language: str,
+        request_label: str = "",
+    ) -> dict[str, Any]:
+        prompt = _APPLY_TEMPLATE_PROMPT.format(
+            generated_slide_json=json.dumps(generated_slide, ensure_ascii=False),
+            template_pages_json=json.dumps(template_pages, ensure_ascii=False),
+            language=language,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+        )
+        response = _apply_template_locally(generated_slide, template_pages)
+        label = _normalize_request_label(
+            request_label,
+            f"apply template: {generated_slide.get('title', '')}",
+        )
+        _log_llm_text("prompt", label, prompt)
+        _log_llm_text("response", label, _to_log_text(response))
+        response.pop("selected_template_index", None)
+        return response
+
 
 class OpenAICompatibleLLMClient(LLMClient):
     def __init__(self, settings: Settings) -> None:
@@ -868,6 +1132,25 @@ class OpenAICompatibleLLMClient(LLMClient):
             elements_schema_json=_ELEMENTS_PROMPT_SCHEMA,
         )
         return _parse_json(await self._call_with_logging(prompt, request_label, f"regenerate slide: {slide_info.get('title', '')}"))
+
+    async def apply_template(
+        self,
+        generated_slide: dict[str, Any],
+        template_pages: list[dict[str, Any]],
+        language: str,
+        request_label: str = "",
+    ) -> dict[str, Any]:
+        prompt = _APPLY_TEMPLATE_PROMPT.format(
+            generated_slide_json=json.dumps(generated_slide, ensure_ascii=False),
+            template_pages_json=json.dumps(template_pages, ensure_ascii=False),
+            language=language,
+            canonical_slide_variants=_CANONICAL_SLIDE_VARIANTS,
+        )
+        result = _parse_json(
+            await self._call_with_logging(prompt, request_label, "apply_template")
+        )
+        result.pop("selected_template_index", None)
+        return result
 
 
 class GeminiLLMClient(OpenAICompatibleLLMClient):

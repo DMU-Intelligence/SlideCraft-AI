@@ -24,9 +24,17 @@ async def regenerate_slide(req: RegenerateSlideRequest, request: Request) -> Reg
     if state is None:
         raise HTTPException(status_code=404, detail="project not found")
 
-    slide = await regeneration_service.regenerate_slide(
-        state, slide_title=req.slide_title, user_request=req.user_request
-    )
+    try:
+        slide = await regeneration_service.regenerate_slide(
+            state,
+            slide_title=req.slide_title,
+            user_request=req.user_request,
+            template_name=req.template_name,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"템플릿 '{req.template_name}'을 찾을 수 없습니다.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     state.touch()
     await repo.upsert(state)
     return RegenerateSlideResponse(project_id=state.project_id, slide=slide)

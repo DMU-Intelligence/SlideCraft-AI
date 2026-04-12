@@ -13,6 +13,7 @@ from .routers.generate import router as generate_router
 from .routers.health import router as health_router
 from .routers.ingest import router as ingest_router
 from .routers.regenerate import router as regenerate_router
+from .routers.template import router as template_router
 from .services.document_parser import DocumentParser
 from .services.llm_client import create_llm_client
 from .services.notes_generator import NotesGenerator
@@ -68,3 +69,4 @@ app.include_router(ingest_router)
 app.include_router(generate_router)
 app.include_router(regenerate_router)
 app.include_router(export_router)
+app.include_router(template_router)
