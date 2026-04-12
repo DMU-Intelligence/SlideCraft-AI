@@ -34,10 +34,10 @@ export interface OutlineItem {
 export interface TextBoxElement {
   type: "text_box";
   text: string;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
   font_name: string;
   font_size: number;
   font_bold: boolean;
@@ -48,19 +48,19 @@ export interface TextBoxElement {
 export interface ShapeElement {
   type: "shape";
   shape_type: "rectangle" | "round_rectangle";
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
   fill_color: string;
 }
 
 export interface BulletListElement {
   type: "bullet_list";
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
   items: string[];
   bullet_char: string;
   bullet_color: string;

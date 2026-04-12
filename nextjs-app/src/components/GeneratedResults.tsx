@@ -1,10 +1,130 @@
 "use client";
 
 import { ChevronLeft, Download } from "lucide-react";
+import type { PageLayout, SlideElement } from "@/types/api";
 
 export interface ResultSlide {
   id: number;
   title: string;
+  theme: "clean_light" | "bold_dark" | "editorial";
+  slide_variant: string;
+  pages: PageLayout[];
+}
+
+// ── Slide preview renderer ────────────────────────────────────────────────────
+
+const CANVAS_W = 13.33;
+const CANVAS_H = 7.5;
+
+const THEME_BG: Record<string, string> = {
+  clean_light: "#F7F8FC",
+  bold_dark: "#0F172A",
+  editorial: "#FFFDF8",
+};
+
+function pW(val: number) {
+  return `${(val / CANVAS_W) * 100}%`;
+}
+function pH(val: number) {
+  return `${(val / CANVAS_H) * 100}%`;
+}
+/** Convert font-size (pt) to cqw units relative to the slide container */
+function fontCqw(pt: number) {
+  return `${(pt / 72 / CANVAS_W) * 100}cqw`;
+}
+
+function renderElement(el: SlideElement, i: number) {
+  if (el.type === "shape") {
+    return (
+      <div
+        key={i}
+        className="absolute"
+        style={{
+          left: pW(el.x),
+          top: pH(el.y),
+          width: pW(el.w),
+          height: pH(el.h),
+          backgroundColor: el.fill_color,
+          borderRadius: el.shape_type === "round_rectangle" ? "6%" : 0,
+        }}
+      />
+    );
+  }
+
+  if (el.type === "text_box") {
+    return (
+      <div
+        key={i}
+        className="absolute overflow-hidden leading-tight"
+        style={{
+          left: pW(el.x),
+          top: pH(el.y),
+          width: pW(el.w),
+          height: pH(el.h),
+          color: el.font_color,
+          fontWeight: el.font_bold ? "bold" : "normal",
+          textAlign: el.align,
+          fontSize: fontCqw(el.font_size),
+        }}
+      >
+        {el.text}
+      </div>
+    );
+  }
+
+  if (el.type === "bullet_list") {
+    return (
+      <div
+        key={i}
+        className="absolute overflow-hidden"
+        style={{
+          left: pW(el.x),
+          top: pH(el.y),
+          width: pW(el.w),
+          height: pH(el.h),
+          fontSize: fontCqw(el.font_size),
+          color: el.font_color,
+        }}
+      >
+        {el.items.map((item, j) => (
+          <div key={j} className="flex leading-tight" style={{ gap: "0.3em" }}>
+            <span style={{ color: el.bullet_color, flexShrink: 0 }}>
+              {el.bullet_char}
+            </span>
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function SlidePreview({ slide }: { slide: ResultSlide }) {
+  const page = slide.pages?.[0];
+  if (!page) {
+    return (
+      <div className="relative flex aspect-video w-full items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
+        <h3 className="px-4 text-center text-sm font-semibold text-white">{slide.title}</h3>
+      </div>
+    );
+  }
+
+  const bg = page.background || THEME_BG[slide.theme] || "#F7F8FC";
+
+  return (
+    <div
+      className="relative w-full overflow-hidden"
+      style={{
+        aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+        backgroundColor: bg,
+        containerType: "inline-size",
+      }}
+    >
+      {page.elements.map((el, i) => renderElement(el, i))}
+    </div>
+  );
 }
 
 interface GeneratedResultsProps {
@@ -69,13 +189,7 @@ export function GeneratedResults({
                   key={slide.id}
                   className="group cursor-default overflow-hidden rounded-xl border border-gray-200 transition-all hover:border-blue-300 hover:shadow-md"
                 >
-                  <div className="relative flex aspect-video items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
-                    <div className="absolute inset-0 bg-black/5" />
-                    <div className="relative px-6 text-center">
-                      <div className="mb-2 text-sm text-white/60">슬라이드 {slide.id}</div>
-                      <h3 className="text-lg font-semibold text-white">{slide.title}</h3>
-                    </div>
-                  </div>
+                  <SlidePreview slide={slide} />
                   <div className="bg-gray-50 px-4 py-3 transition-colors group-hover:bg-blue-50">
                     <p className="text-sm font-medium text-gray-600">슬라이드 {slide.id}</p>
                   </div>

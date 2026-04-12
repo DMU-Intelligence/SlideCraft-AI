@@ -3,13 +3,8 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
-import { GeneratedResults } from "@/components/GeneratedResults";
+import { GeneratedResults, type ResultSlide } from "@/components/GeneratedResults";
 import { UploadArea } from "@/components/UploadArea";
-
-interface Slide {
-  id: number;
-  title: string;
-}
 
 export default function Home() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -19,7 +14,7 @@ export default function Home() {
 
   // API 상태 관리
   const [projectId, setProjectId] = useState<number | null>(null);
-  const [slides, setSlides] = useState<Slide[]>([]);
+  const [slides, setSlides] = useState<ResultSlide[]>([]);
   const [script, setScript] = useState("");
   const [downloadPending, setDownloadPending] = useState(false);
 
@@ -51,7 +46,7 @@ export default function Home() {
         method: "POST",
         body: formData,
       });
-      
+
       const newProjectId = ingestData.project_id;
       setProjectId(newProjectId);
 
@@ -63,9 +58,9 @@ export default function Home() {
       });
 
       // 3. 데이터 변환 및 저장
-      const formattedSlides = generateData.slides.map((slide: any, index: number) => ({
+      const formattedSlides: ResultSlide[] = generateData.slides.map((slide: any, index: number) => ({
         id: index + 1,
-        title: slide.title,
+        ...slide,
       }));
 
       setSlides(formattedSlides);
