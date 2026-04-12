@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SlideCraft AI",
-  description: "문서를 업로드하고 발표 자료를 생성·테스트합니다.",
+  description: "문서를 업로드하면 발표 자료가 자동으로 생성됩니다.",
 };
 
 export default function RootLayout({
