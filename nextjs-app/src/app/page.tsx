@@ -3,73 +3,122 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
-import { apiClient } from "@/lib/api";
-import { toErrorObject } from "@/lib/utils";
-import { useApiTestStore } from "@/store/useApiTestStore";
 import { GeneratedResults } from "@/components/GeneratedResults";
 import { UploadArea } from "@/components/UploadArea";
+
+interface Slide {
+  id: number;
+  title: string;
+}
 
 export default function Home() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [presentationTitle, setPresentationTitle] = useState("");
   const [isGenerated, setIsGenerated] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const baseUrl = useApiTestStore((s) => s.backendBaseUrl);
-  const setCurrentProjectId = useApiTestStore((s) => s.setCurrentProjectId);
-  const setIngestResult = useApiTestStore((s) => s.setIngestResult);
-  const ingestResult = useApiTestStore((s) => s.ingestResult);
+  // API 상태 관리
+  const [projectId, setProjectId] = useState<number | null>(null);
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const [script, setScript] = useState("");
+  const [downloadPending, setDownloadPending] = useState(false);
+
+  // API 호출 공통 래퍼 (에러 핸들링 강화)
+  const safeFetch = async (url: string, options: RequestInit) => {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      const errorText = await res.text();
+      // "Server action..." 등의 에러 메시지를 콘솔에 출력하여 원인 파악
+      throw new Error(`API Error (${res.status}): ${errorText.slice(0, 100)}`);
+    }
+    return res.json();
+  };
 
   const handleGenerate = async () => {
     if (!uploadedFile || !presentationTitle || isGenerating) return;
 
     setIsGenerating(true);
-    setError(null);
 
     try {
-      const response = await apiClient.ingestDocument(baseUrl, {
-        file: uploadedFile,
-        title: presentationTitle,
-        language: "ko",
+      // 1. PDF 업로드 (엔드포인트 경로 앞에 /api 추가 여부 확인 필요)
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+      formData.append("title", presentationTitle);
+      formData.append("language", "ko");
+
+      // 경로를 /api/ingest/document 로 시도해 보세요 (프로젝트 구조에 따라 수정)
+      const ingestData = await safeFetch("/api/ingest/document", {
+        method: "POST",
+        body: formData,
+      });
+      
+      const newProjectId = ingestData.project_id;
+      setProjectId(newProjectId);
+
+      // 2. 결과 생성 요청
+      const generateData = await safeFetch("/api/generate/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: newProjectId }),
       });
 
-      // Store에 결과 저장
-      setCurrentProjectId(response.project_id);
-      setIngestResult(response);
+      // 3. 데이터 변환 및 저장
+      const formattedSlides = generateData.slides.map((slide: any, index: number) => ({
+        id: index + 1,
+        title: slide.title,
+      }));
+
+      setSlides(formattedSlides);
+      setScript(generateData.notes);
       setIsGenerated(true);
-    } catch (err) {
-      const errorObj = toErrorObject(err);
-      const errorMessage = typeof errorObj.message === "string"
-        ? errorObj.message
-        : "업로드에 실패했습니다. 다시 시도해주세요.";
-      setError(errorMessage);
-      console.error("Ingest error:", err);
+
+    } catch (error) {
+      console.error("발생한 에러:", error);
+      alert("데이터를 가져오는 중 문제가 발생했습니다. 콘솔을 확인해 주세요.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  if (isGenerated && ingestResult) {
-    // ingest 결과의 content를 script로 사용
-    const mockSlides = [
-      { id: 1, title: "소개 및 개요" },
-      { id: 2, title: "주요 내용 1" },
-      { id: 3, title: "주요 내용 2" },
-      { id: 4, title: "핵심 포인트" },
-      { id: 5, title: "결론 및 다음 단계" },
-    ];
+  const handleDownload = async () => {
+    if (!projectId || downloadPending) return;
 
+    setDownloadPending(true);
+    try {
+      const response = await fetch("/api/export/pptx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+
+      if (!response.ok) throw new Error("다운로드 실패");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${presentationTitle || "presentation"}.pptx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("다운로드 중 에러가 발생했습니다.");
+    } finally {
+      setDownloadPending(false);
+    }
+  };
+
+  if (isGenerated) {
     return (
       <GeneratedResults
-        slides={mockSlides}
-        script={ingestResult.content || ""}
+        slides={slides}
+        script={script}
         presentationTitle={presentationTitle}
-        projectId={ingestResult.project_id}
-        onBack={() => {
-          setIsGenerated(false);
-          setError(null);
-        }}
+        onBack={() => setIsGenerated(false)}
+        onDownload={handleDownload}
+        downloadPending={downloadPending}
       />
     );
   }
@@ -86,28 +135,20 @@ export default function Home() {
         </header>
 
         <section className="space-y-8 rounded-3xl border border-gray-100 bg-white p-10 shadow-xl">
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
           <div>
             <label className="mb-3 block text-sm font-semibold text-gray-700">PDF 문서 업로드</label>
             <UploadArea onFileSelect={setUploadedFile} selectedFile={uploadedFile} />
           </div>
 
           <div>
-            <label htmlFor="title" className="mb-3 block text-sm font-semibold text-gray-700">
-              발표 제목
-            </label>
+            <label htmlFor="title" className="mb-3 block text-sm font-semibold text-gray-700">발표 제목</label>
             <input
               id="title"
               type="text"
               value={presentationTitle}
               onChange={(e) => setPresentationTitle(e.target.value)}
               placeholder="발표 제목을 입력하세요..."
-              className="w-full rounded-xl border border-gray-200 px-5 py-4 text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="w-full rounded-xl border border-gray-200 px-5 py-4 text-gray-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
           </div>
 
@@ -115,25 +156,15 @@ export default function Home() {
             type="button"
             onClick={handleGenerate}
             disabled={!uploadedFile || !presentationTitle || isGenerating}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:from-gray-300 disabled:to-gray-300 disabled:shadow-none"
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-300"
           >
             {isGenerating ? (
-              <>
-                <span className="h-5 w-5 animate-spin rounded-full border-[3px] border-white/30 border-t-white" />
-                생성 중...
-              </>
+              <><span className="h-5 w-5 animate-spin rounded-full border-[3px] border-white/30 border-t-white" /> 생성 중...</>
             ) : (
-              <>
-                <Sparkles className="h-5 w-5" />
-                AI로 PPT 생성하기
-              </>
+              <><Sparkles className="h-5 w-5" /> AI로 PPT 생성하기</>
             )}
           </button>
-
-          <p className="text-center text-sm text-gray-500">AI가 문서를 분석하여 몇 초 안에 멋진 발표 자료를 만들어 드립니다</p>
         </section>
-
-        <footer className="mt-8 text-center text-sm text-gray-500">고급 AI 기술로 제공됩니다</footer>
       </div>
     </main>
   );
