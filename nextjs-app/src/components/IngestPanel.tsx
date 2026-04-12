@@ -18,6 +18,7 @@ export function IngestPanel() {
   const setActionSuccess = useApiTestStore((s) => s.setActionSuccess);
   const setActionError = useApiTestStore((s) => s.setActionError);
   const setIngestResult = useApiTestStore((s) => s.setIngestResult);
+  const setCurrentProjectId = useApiTestStore((s) => s.setCurrentProjectId);
 
   const [file, setFile] = useState<File | null>(null);
   const [projectId, setProjectId] = useState("");
@@ -54,6 +55,7 @@ export function IngestPanel() {
         tone,
       });
       setIngestResult(res);
+      setCurrentProjectId(res.project_id);
       setActionSuccess("ingest", res as unknown as Record<string, unknown>);
     } catch (error) {
       setActionError("ingest", toErrorObject(error));
