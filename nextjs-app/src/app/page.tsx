@@ -3,61 +3,73 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
 
+import { apiClient } from "@/lib/api";
+import { toErrorObject } from "@/lib/utils";
+import { useApiTestStore } from "@/store/useApiTestStore";
 import { GeneratedResults } from "@/components/GeneratedResults";
 import { UploadArea } from "@/components/UploadArea";
-
-const MOCK_SLIDES = [
-  { id: 1, title: "Introduction to AI in Business" },
-  { id: 2, title: "Key Benefits & ROI Analysis" },
-  { id: 3, title: "Implementation Strategy" },
-  { id: 4, title: "Case Studies & Success Stories" },
-  { id: 5, title: "Future Trends & Roadmap" },
-  { id: 6, title: "Q&A and Next Steps" },
-];
 
 export default function Home() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [presentationTitle, setPresentationTitle] = useState("");
   const [isGenerated, setIsGenerated] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const script = `Welcome everyone to today's presentation on ${presentationTitle || "AI-Powered Solutions"}.
-
-Slide 1: Introduction
-Let's begin by exploring how artificial intelligence is revolutionizing the business landscape. In this presentation, we'll dive deep into the transformative power of AI and its practical applications across industries.
-
-Slide 2: Key Benefits & ROI Analysis
-The implementation of AI solutions has shown remarkable results. Companies adopting AI technologies have reported up to 40% improvement in operational efficiency and a 35% reduction in costs. We'll examine real data and metrics that demonstrate the tangible return on investment.
-
-Slide 3: Implementation Strategy
-Successful AI adoption requires a structured approach. We recommend a phased implementation that starts with identifying key pain points, followed by pilot programs, and then scaling across the organization. This minimizes risk while maximizing learning opportunities.
-
-Slide 4: Case Studies & Success Stories
-Let me share some inspiring examples. Company A increased their customer satisfaction by 50% through AI-powered chatbots. Company B reduced their processing time from days to hours using machine learning algorithms. These success stories demonstrate what's possible.
-
-Slide 5: Future Trends & Roadmap
-Looking ahead, we're seeing exciting developments in generative AI, autonomous systems, and predictive analytics. The roadmap for the next 3-5 years shows exponential growth in AI capabilities and accessibility.
-
-Slide 6: Q&A and Next Steps
-Now I'd like to open the floor for questions. Following this presentation, we'll provide you with detailed documentation and a personalized action plan to begin your AI journey.
-
-Thank you for your attention. Let's build the future together.`;
+  const baseUrl = useApiTestStore((s) => s.backendBaseUrl);
+  const setCurrentProjectId = useApiTestStore((s) => s.setCurrentProjectId);
+  const setIngestResult = useApiTestStore((s) => s.setIngestResult);
+  const ingestResult = useApiTestStore((s) => s.ingestResult);
 
   const handleGenerate = async () => {
     if (!uploadedFile || !presentationTitle || isGenerating) return;
+
     setIsGenerating(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsGenerating(false);
-    setIsGenerated(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.ingestDocument(baseUrl, {
+        file: uploadedFile,
+        title: presentationTitle,
+        language: "ko",
+      });
+
+      // Store에 결과 저장
+      setCurrentProjectId(response.project_id);
+      setIngestResult(response);
+      setIsGenerated(true);
+    } catch (err) {
+      const errorObj = toErrorObject(err);
+      const errorMessage = typeof errorObj.message === "string"
+        ? errorObj.message
+        : "업로드에 실패했습니다. 다시 시도해주세요.";
+      setError(errorMessage);
+      console.error("Ingest error:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  if (isGenerated) {
+  if (isGenerated && ingestResult) {
+    // ingest 결과의 content를 script로 사용
+    const mockSlides = [
+      { id: 1, title: "소개 및 개요" },
+      { id: 2, title: "주요 내용 1" },
+      { id: 3, title: "주요 내용 2" },
+      { id: 4, title: "핵심 포인트" },
+      { id: 5, title: "결론 및 다음 단계" },
+    ];
+
     return (
       <GeneratedResults
-        slides={MOCK_SLIDES}
-        script={script}
+        slides={mockSlides}
+        script={ingestResult.content || ""}
         presentationTitle={presentationTitle}
-        onBack={() => setIsGenerated(false)}
+        projectId={ingestResult.project_id}
+        onBack={() => {
+          setIsGenerated(false);
+          setError(null);
+        }}
       />
     );
   }
@@ -74,6 +86,12 @@ Thank you for your attention. Let's build the future together.`;
         </header>
 
         <section className="space-y-8 rounded-3xl border border-gray-100 bg-white p-10 shadow-xl">
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="mb-3 block text-sm font-semibold text-gray-700">PDF 문서 업로드</label>
             <UploadArea onFileSelect={setUploadedFile} selectedFile={uploadedFile} />

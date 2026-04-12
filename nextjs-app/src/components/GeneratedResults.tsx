@@ -11,6 +11,7 @@ interface GeneratedResultsProps {
   slides: ResultSlide[];
   script: string;
   presentationTitle?: string;
+  projectId?: number;
   onBack: () => void;
   onDownload?: () => void;
   downloadPending?: boolean;
@@ -20,6 +21,7 @@ export function GeneratedResults({
   slides,
   script,
   presentationTitle,
+  projectId,
   onBack,
   onDownload,
   downloadPending,
