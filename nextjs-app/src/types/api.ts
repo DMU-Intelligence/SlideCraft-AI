@@ -163,3 +163,15 @@ export interface RegenerateNotesResponse {
   project_id: number;
   notes: string;
 }
+
+// ── Presentation result types ─────────────────────────────────────────────────
+
+export interface ResultSlide {
+  id: number;
+  title: string;
+  theme: "clean_light" | "bold_dark" | "editorial";
+  slide_variant: string;
+  pages: PageLayout[];
+}
+
+export type Phase = "upload" | "loading" | "result";

@@ -1,166 +1,123 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Pen } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
-import { GeneratedResults, type ResultSlide } from "@/components/GeneratedResults";
+import { usePPTGenerator } from "@/hooks/usePPTGenerator";
 import { UploadArea } from "@/components/UploadArea";
+import { BrushLoading } from "@/components/BrushLoading";
+import { GeneratedResults } from "@/components/GeneratedResults";
 
 export default function Home() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [presentationTitle, setPresentationTitle] = useState("");
-  const [isGenerated, setIsGenerated] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  // API 상태 관리
-  const [projectId, setProjectId] = useState<number | null>(null);
-  const [slides, setSlides] = useState<ResultSlide[]>([]);
-  const [script, setScript] = useState("");
-  const [downloadPending, setDownloadPending] = useState(false);
-
-  // API 호출 공통 래퍼 (에러 핸들링 강화)
-  const safeFetch = async (url: string, options: RequestInit) => {
-    const res = await fetch(url, options);
-    if (!res.ok) {
-      const errorText = await res.text();
-      // "Server action..." 등의 에러 메시지를 콘솔에 출력하여 원인 파악
-      throw new Error(`API Error (${res.status}): ${errorText.slice(0, 100)}`);
-    }
-    return res.json();
-  };
-
-  const handleGenerate = async () => {
-    if (!uploadedFile || !presentationTitle || isGenerating) return;
-
-    setIsGenerating(true);
-
-    try {
-      // 1. PDF 업로드 (엔드포인트 경로 앞에 /api 추가 여부 확인 필요)
-      const formData = new FormData();
-      formData.append("file", uploadedFile);
-      formData.append("title", presentationTitle);
-      formData.append("language", "ko");
-
-      // 경로를 /api/ingest/document 로 시도해 보세요 (프로젝트 구조에 따라 수정)
-      const ingestData = await safeFetch("/api/ingest/document", {
-        method: "POST",
-        body: formData,
-      });
-
-      const newProjectId = ingestData.project_id;
-      setProjectId(newProjectId);
-
-      // 2. 결과 생성 요청
-      const generateData = await safeFetch("/api/generate/all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: newProjectId }),
-      });
-
-      // 3. 데이터 변환 및 저장
-      const formattedSlides: ResultSlide[] = generateData.slides.map((slide: any, index: number) => ({
-        id: index + 1,
-        ...slide,
-      }));
-
-      setSlides(formattedSlides);
-      setScript(generateData.notes);
-      setIsGenerated(true);
-
-    } catch (error) {
-      console.error("발생한 에러:", error);
-      alert("데이터를 가져오는 중 문제가 발생했습니다. 콘솔을 확인해 주세요.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!projectId || downloadPending) return;
-
-    setDownloadPending(true);
-    try {
-      const response = await fetch("/api/export/pptx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: projectId }),
-      });
-
-      if (!response.ok) throw new Error("다운로드 실패");
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${presentationTitle || "presentation"}.pptx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download error:", error);
-      alert("다운로드 중 에러가 발생했습니다.");
-    } finally {
-      setDownloadPending(false);
-    }
-  };
-
-  if (isGenerated) {
-    return (
-      <GeneratedResults
-        slides={slides}
-        script={script}
-        presentationTitle={presentationTitle}
-        onBack={() => setIsGenerated(false)}
-        onDownload={handleDownload}
-        downloadPending={downloadPending}
-      />
-    );
-  }
+  const {
+    phase,
+    uploadedFile,
+    presentationTitle,
+    slides,
+    script,
+    currentSlideIndex,
+    generatePending,
+    downloadPending,
+    error,
+    loadingMessage,
+    setUploadedFile,
+    setPresentationTitle,
+    generate,
+    download,
+    reset,
+    nextSlide,
+    prevSlide,
+  } = usePPTGenerator();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
-      <div className="w-full max-w-2xl">
-        <header className="mb-12 text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg">
-            <Sparkles className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="mb-3 text-4xl font-bold text-gray-900">SlideCraft AI</h1>
-          <p className="text-lg text-gray-600">문서를 업로드하면 발표 자료가 자동으로 생성됩니다.</p>
-        </header>
+    <AnimatePresence mode="wait">
+      {/* ── Phase A: The Dropzone ── */}
+      {phase === "upload" && (
+        <motion.main
+          key="upload"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ duration: 0.4 }}
+          className="flex min-h-screen items-center justify-center p-6"
+        >
+          <div className="w-full max-w-xl">
+            <header className="mb-10 text-center">
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full border border-border-subtle">
+                <Pen className="h-5 w-5 text-ink" strokeWidth={1.5} />
+              </div>
+              <h1 className="mb-2 text-3xl font-medium tracking-tight text-ink">
+                SlideCraft AI
+              </h1>
+              <p className="text-sm text-ink-light">
+                문서를 업로드하면 발표 자료가 자동으로 생성됩니다.
+              </p>
+            </header>
 
-        <section className="space-y-8 rounded-3xl border border-gray-100 bg-white p-10 shadow-xl">
-          <div>
-            <label className="mb-3 block text-sm font-semibold text-gray-700">PDF 문서 업로드</label>
-            <UploadArea onFileSelect={setUploadedFile} selectedFile={uploadedFile} />
-          </div>
+            <section className="space-y-6 rounded-xl border border-border-subtle bg-white p-8">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-ink">
+                  PDF 문서 업로드
+                </label>
+                <UploadArea onFileSelect={setUploadedFile} selectedFile={uploadedFile} />
+              </div>
 
-          <div>
-            <label htmlFor="title" className="mb-3 block text-sm font-semibold text-gray-700">발표 제목</label>
-            <input
-              id="title"
-              type="text"
-              value={presentationTitle}
-              onChange={(e) => setPresentationTitle(e.target.value)}
-              placeholder="발표 제목을 입력하세요..."
-              className="w-full rounded-xl border border-gray-200 px-5 py-4 text-gray-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="title"
+                  className="mb-2 block text-sm font-medium text-ink"
+                >
+                  발표 제목
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={presentationTitle}
+                  onChange={(e) => setPresentationTitle(e.target.value)}
+                  placeholder="발표 제목을 입력하세요..."
+                  className="w-full rounded-lg border border-border-subtle bg-white px-4 py-3 text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-accent"
+                />
+              </div>
 
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={!uploadedFile || !presentationTitle || isGenerating}
-            className="flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-lg font-semibold text-white shadow-lg transition-all hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-300"
-          >
-            {isGenerating ? (
-              <><span className="h-5 w-5 animate-spin rounded-full border-[3px] border-white/30 border-t-white" /> 생성 중...</>
-            ) : (
-              <><Sparkles className="h-5 w-5" /> AI로 PPT 생성하기</>
-            )}
-          </button>
-        </section>
-      </div>
-    </main>
+              {error && (
+                <p className="text-sm text-red-600">{error}</p>
+              )}
+
+              <button
+                type="button"
+                onClick={generate}
+                disabled={!uploadedFile || !presentationTitle || generatePending}
+                aria-label="AI로 PPT 생성하기"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-accent bg-accent px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:border-border-subtle disabled:bg-muted disabled:text-ink-faint"
+              >
+                <Pen className="h-4 w-4" strokeWidth={1.5} />
+                슬라이드 그리기
+              </button>
+            </section>
+          </div>
+        </motion.main>
+      )}
+
+      {/* ── Phase B: The Brush Drawing ── */}
+      {phase === "loading" && (
+        <BrushLoading key="loading" message={loadingMessage} />
+      )}
+
+      {/* ── Phase C: The Split Preview ── */}
+      {phase === "result" && (
+        <GeneratedResults
+          key="result"
+          slides={slides}
+          script={script}
+          presentationTitle={presentationTitle}
+          currentSlideIndex={currentSlideIndex}
+          onBack={reset}
+          onDownload={download}
+          onPrev={prevSlide}
+          onNext={nextSlide}
+          downloadPending={downloadPending}
+        />
+      )}
+    </AnimatePresence>
   );
 }

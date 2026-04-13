@@ -1,27 +1,7 @@
-// src/app/api/export/pptx/route.ts
 import { NextResponse } from "next/server";
+import { getBackendBaseUrl, toErrorPayload, BACKEND_TIMEOUT } from "@/lib/backend";
 
-function getBackendBaseUrl(): string {
-  return (process.env.BACKEND_BASE_URL || process.env.NEXT_PUBLIC_BACKEND_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
-}
-
-async function toErrorPayload(response: Response): Promise<{ error: string }> {
-  const text = await response.text();
-  if (!text) {
-    return { error: `Backend error (${response.status})` };
-  }
-  try {
-    const parsed = JSON.parse(text) as { detail?: unknown; message?: unknown; error?: unknown };
-    const message =
-      (typeof parsed.detail === "string" && parsed.detail) ||
-      (typeof parsed.message === "string" && parsed.message) ||
-      (typeof parsed.error === "string" && parsed.error) ||
-      `Backend error (${response.status})`;
-    return { error: message };
-  } catch {
-    return { error: text.slice(0, 500) };
-  }
-}
+export const maxDuration = 600;
 
 export async function POST(req: Request) {
   try {
@@ -31,6 +11,7 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
+      signal: AbortSignal.timeout(BACKEND_TIMEOUT),
     });
 
     if (!backendRes.ok) {

@@ -2,6 +2,7 @@
 
 import { FileText, Upload } from "lucide-react";
 import { useState, type DragEvent } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ACCEPT = ".pdf,application/pdf";
 
@@ -43,10 +44,10 @@ export function UploadArea({ onFileSelect, selectedFile }: UploadAreaProps) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-200 md:p-12 ${
+      className={`relative cursor-pointer rounded-xl p-10 text-center transition-colors duration-200 md:p-14 ${
         isDragging
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+          ? "sketchy-border-active bg-accent/5"
+          : "sketchy-border hover:bg-ink/[0.02]"
       }`}
     >
       <input
@@ -54,32 +55,49 @@ export function UploadArea({ onFileSelect, selectedFile }: UploadAreaProps) {
         accept={ACCEPT}
         onChange={handleFileInput}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        aria-label="PDF 파일 업로드"
       />
 
-      <div className="flex flex-col items-center gap-4">
+      <AnimatePresence mode="wait">
         {selectedFile ? (
-          <>
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-              <FileText className="h-8 w-8 text-blue-600" />
+          <motion.div
+            key="selected"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border-subtle">
+              <FileText className="h-6 w-6 text-ink" strokeWidth={1.5} />
             </div>
             <div>
-              <p className="font-medium text-gray-700">{selectedFile.name}</p>
-              <p className="mt-1 text-sm text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="font-medium tracking-tight text-ink">{selectedFile.name}</p>
+              <p className="mt-1 text-sm text-ink-light">
+                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+              </p>
             </div>
-            <p className="text-sm text-blue-600">클릭하거나 드래그하여 변경</p>
-          </>
+            <p className="text-sm text-accent">클릭하거나 드래그하여 변경</p>
+          </motion.div>
         ) : (
-          <>
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-              <Upload className="h-8 w-8 text-gray-400" />
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border-subtle">
+              <Upload className="h-6 w-6 text-ink-faint" strokeWidth={1.5} />
             </div>
             <div>
-              <p className="font-medium text-gray-700">PDF를 여기에 드래그하여 업로드하세요</p>
-              <p className="mt-1 text-sm text-gray-500">또는 클릭하여 파일 선택</p>
+              <p className="font-medium tracking-tight text-ink">
+                PDF를 여기에 드래그하여 업로드하세요
+              </p>
+              <p className="mt-1 text-sm text-ink-light">또는 클릭하여 파일 선택</p>
             </div>
-          </>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,138 +1,20 @@
-"use client";
+﻿"use client";
 
-import { ChevronLeft, Download } from "lucide-react";
-import type { PageLayout, SlideElement } from "@/types/api";
-
-export interface ResultSlide {
-  id: number;
-  title: string;
-  theme: "clean_light" | "bold_dark" | "editorial";
-  slide_variant: string;
-  pages: PageLayout[];
-}
-
-// ── Slide preview renderer ────────────────────────────────────────────────────
-
-const CANVAS_W = 13.33;
-const CANVAS_H = 7.5;
-
-const THEME_BG: Record<string, string> = {
-  clean_light: "#F7F8FC",
-  bold_dark: "#0F172A",
-  editorial: "#FFFDF8",
-};
-
-function pW(val: number) {
-  return `${(val / CANVAS_W) * 100}%`;
-}
-function pH(val: number) {
-  return `${(val / CANVAS_H) * 100}%`;
-}
-/** Convert font-size (pt) to cqw units relative to the slide container */
-function fontCqw(pt: number) {
-  return `${(pt / 72 / CANVAS_W) * 100}cqw`;
-}
-
-function renderElement(el: SlideElement, i: number) {
-  if (el.type === "shape") {
-    return (
-      <div
-        key={i}
-        className="absolute"
-        style={{
-          left: pW(el.x),
-          top: pH(el.y),
-          width: pW(el.w),
-          height: pH(el.h),
-          backgroundColor: el.fill_color,
-          borderRadius: el.shape_type === "round_rectangle" ? "6%" : 0,
-        }}
-      />
-    );
-  }
-
-  if (el.type === "text_box") {
-    return (
-      <div
-        key={i}
-        className="absolute overflow-hidden leading-tight"
-        style={{
-          left: pW(el.x),
-          top: pH(el.y),
-          width: pW(el.w),
-          height: pH(el.h),
-          color: el.font_color,
-          fontWeight: el.font_bold ? "bold" : "normal",
-          textAlign: el.align,
-          fontSize: fontCqw(el.font_size),
-        }}
-      >
-        {el.text}
-      </div>
-    );
-  }
-
-  if (el.type === "bullet_list") {
-    return (
-      <div
-        key={i}
-        className="absolute overflow-hidden"
-        style={{
-          left: pW(el.x),
-          top: pH(el.y),
-          width: pW(el.w),
-          height: pH(el.h),
-          fontSize: fontCqw(el.font_size),
-          color: el.font_color,
-        }}
-      >
-        {el.items.map((item, j) => (
-          <div key={j} className="flex leading-tight" style={{ gap: "0.3em" }}>
-            <span style={{ color: el.bullet_color, flexShrink: 0 }}>
-              {el.bullet_char}
-            </span>
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function SlidePreview({ slide }: { slide: ResultSlide }) {
-  const page = slide.pages?.[0];
-  if (!page) {
-    return (
-      <div className="relative flex aspect-video w-full items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
-        <h3 className="px-4 text-center text-sm font-semibold text-white">{slide.title}</h3>
-      </div>
-    );
-  }
-
-  const bg = page.background || THEME_BG[slide.theme] || "#F7F8FC";
-
-  return (
-    <div
-      className="relative w-full overflow-hidden"
-      style={{
-        aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
-        backgroundColor: bg,
-        containerType: "inline-size",
-      }}
-    >
-      {page.elements.map((el, i) => renderElement(el, i))}
-    </div>
-  );
-}
+import { ChevronLeft, ChevronRight, Download, ArrowLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useCallback } from "react";
+import type { ResultSlide } from "@/types/api";
+import { SlidePreview } from "@/components/SlideRenderer";
 
 interface GeneratedResultsProps {
   slides: ResultSlide[];
   script: string;
   presentationTitle?: string;
+  currentSlideIndex: number;
   onBack: () => void;
   onDownload?: () => void;
+  onPrev: () => void;
+  onNext: () => void;
   downloadPending?: boolean;
 }
 
@@ -140,72 +22,137 @@ export function GeneratedResults({
   slides,
   script,
   presentationTitle,
+  currentSlideIndex,
   onBack,
   onDownload,
+  onPrev,
+  onNext,
   downloadPending,
 }: GeneratedResultsProps) {
+  const currentSlide = slides[currentSlideIndex];
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") onPrev();
+      if (e.key === "ArrowRight") onNext();
+    },
+    [onPrev, onNext]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 transition-colors hover:text-gray-900"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            <span>워크플로로 돌아가기</span>
-          </button>
-          <div className="flex flex-col items-end gap-0.5">
-            {presentationTitle ? (
-              <span className="max-w-[min(100vw-12rem,28rem)] truncate text-sm font-medium text-gray-800">
-                {presentationTitle}
-              </span>
-            ) : null}
+    <motion.div
+      initial={{ opacity: 0, x: 60 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="flex h-screen flex-col overflow-hidden"
+    >
+      {/* Top bar */}
+      <header className="flex items-center justify-between border-b border-border-subtle px-8 py-4">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="\uCC98\uC74C\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30"
+          className="flex items-center gap-2 text-base text-ink-light transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
+          <span>{"\uCC98\uC74C\uC73C\uB85C"}</span>
+        </button>
+
+        {presentationTitle && (
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-medium tracking-tight text-ink">
+            {presentationTitle}
+          </h1>
+        )}
+
+        <button
+          type="button"
+          onClick={onDownload}
+          disabled={downloadPending || !onDownload}
+          aria-label="PPT \uB2E4\uC6B4\uB85C\uB4DC"
+          className="flex items-center gap-2 rounded-lg border border-border-subtle bg-white px-5 py-2 text-base font-medium text-ink transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {downloadPending ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-faint border-t-ink" />
+          ) : (
+            <Download className="h-4 w-4" strokeWidth={1.5} />
+          )}
+          {"PPT \uB2E4\uC6B4\uB85C\uB4DC"}
+        </button>
+      </header>
+
+      {/* Main content */}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {/* Left: Slide area (60%) */}
+        <div className="flex min-h-0 flex-1 flex-col lg:w-[60%] lg:flex-none">
+          {/* Slide preview */}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center px-8 py-6 lg:px-12 lg:py-8">
+            <AnimatePresence mode="wait">
+              {currentSlide && (
+                <motion.div
+                  key={currentSlide.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="w-full max-w-3xl"
+                >
+                  <SlidePreview slide={currentSlide} />
+                  <div className="mt-3 flex items-baseline justify-between">
+                    <p className="text-sm font-medium tracking-tight text-ink">
+                      {currentSlide.title}
+                    </p>
+                    <span className="text-xs tabular-nums text-ink-faint">
+                      {currentSlideIndex + 1} / {slides.length}
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Prev / Next overlays */}
             <button
               type="button"
-              onClick={onDownload}
-              disabled={downloadPending || !onDownload}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={onPrev}
+              disabled={currentSlideIndex === 0}
+              aria-label="\uC774\uC804 \uC2AC\uB77C\uC774\uB4DC"
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-border-subtle bg-white/80 p-3 text-ink-light backdrop-blur-sm transition-all hover:border-ink-faint hover:text-ink disabled:pointer-events-none disabled:opacity-0"
             >
-              {downloadPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              PPT 다운로드
+              <ChevronLeft className="h-6 w-6" strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={currentSlideIndex === slides.length - 1}
+              aria-label="\uB2E4\uC74C \uC2AC\uB77C\uC774\uB4DC"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-border-subtle bg-white/80 p-3 text-ink-light backdrop-blur-sm transition-all hover:border-ink-faint hover:text-ink disabled:pointer-events-none disabled:opacity-0"
+            >
+              <ChevronRight className="h-6 w-6" strokeWidth={1.5} />
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">발표 슬라이드</h2>
-            <div className="h-[calc(100vh-220px)] space-y-4 overflow-y-auto rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-              {slides.map((slide) => (
-                <div
-                  key={slide.id}
-                  className="group cursor-default overflow-hidden rounded-xl border border-gray-200 transition-all hover:border-blue-300 hover:shadow-md"
-                >
-                  <SlidePreview slide={slide} />
-                  <div className="bg-gray-50 px-4 py-3 transition-colors group-hover:bg-blue-50">
-                    <p className="text-sm font-medium text-gray-600">슬라이드 {slide.id}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Right: Script (40%) */}
+        <div className="flex min-h-0 flex-col border-t border-border-subtle lg:w-[40%] lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between border-b border-border-subtle px-6 py-2.5">
+            <h2 className="text-sm font-medium tracking-tight text-ink">{"\uBC1C\uD45C \uB300\uBCF8"}</h2>
+            <span className="text-xs text-ink-faint">
+              {"\uC2AC\uB77C\uC774\uB4DC"} {currentSlideIndex + 1}
+            </span>
           </div>
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">발표 스크립트</h2>
-            <div className="h-[calc(100vh-220px)] overflow-y-auto rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
-              <p className="whitespace-pre-line leading-relaxed text-gray-700">{script || "노트가 아직 없습니다."}</p>
+          <div className="flex-1 overflow-y-auto px-6 py-5 lg:px-8 lg:py-6">
+            <div className="prose-analog">
+              <p className="whitespace-pre-line text-lg leading-[1.9] tracking-tight text-ink/80">
+                {script || "\uB178\uD2B8\uAC00 \uC544\uC9C1 \uC5C6\uC2B5\uB2C8\uB2E4."}
+              </p>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
