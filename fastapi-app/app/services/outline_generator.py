@@ -7,16 +7,21 @@ from .llm_client import LLMClient
 
 def _preferred_variant_for_role(role: str, key_points: list[str]) -> str:
     role = role.strip().lower()
-    if role == "problem_intro":
+    n = len(key_points)
+    if role in {"cover", "problem_intro"}:
         return "title_page"
+    if role == "closing":
+        return "closing_page"
     if role == "analysis":
         return "content_split_band"
-    if role in {"summary", "solution"}:
+    if role == "solution":
+        return "content_steps"
+    if role == "summary":
         return "content_compact"
     if role == "comparison":
         return "content_two_panel"
-    if len(key_points) >= 4:
-        return "content_two_panel"
+    if 2 <= n <= 5:
+        return "content_card_grid"
     return "content_box_list"
 
 
@@ -42,6 +47,8 @@ class OutlineGenerator:
             request_label=f"outline project {state.project_id}",
         )
         generated_title = str(raw.get("title") or state.title).strip() or state.title
+        raw_theme = str(raw.get("theme", "clean_light")).strip()
+        theme = raw_theme if raw_theme in {"clean_light", "bold_dark", "editorial"} else "clean_light"
         outline_payload = raw.get("outline", {})
         outline: dict[str, OutlineItem] = {}
         for title, item in outline_payload.items():
@@ -52,4 +59,4 @@ class OutlineGenerator:
                     outline_item.key_points,
                 )
             outline[title] = outline_item
-        return OutlineGenerationResult(title=generated_title, outline=outline)
+        return OutlineGenerationResult(title=generated_title, outline=outline, theme=theme)

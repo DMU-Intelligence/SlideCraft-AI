@@ -1,1 +1,59 @@
-{"target":"SlideContent.pages[].slots","purpose":"prompt_contract","rules":["slots is semantic content only","do not put x, y, w, h or style fields in slots","use only keys needed for the chosen slide_variant","bullets, left_points, right_points: 2 to 5 short items","if elements exists, runtime renders elements first"],"schema":{"eyebrow":"string","headline":"string","body":"string","bullets":["string"],"left_points":["string"],"right_points":["string"],"highlight":"string","people":["string"]},"variant_keys":{"title_page":["eyebrow","headline","body","people"],"content_box_list":["headline","body","bullets","highlight"],"content_two_panel":["headline","left_points","right_points"],"content_sidebar":["headline","bullets","highlight"],"content_split_band":["headline","body","left_points","right_points"],"content_compact":["headline","bullets","highlight"],"closing_page":["headline","body","people"]},"example":{"headline":"피부 타입별 관리 포인트","body":"피부 타입에 따라 관리 우선순위가 달라집니다.","bullets":["건성 피부는 수분 유지와 장벽 보호가 중요합니다.","지성 피부는 피지 조절과 자극 완화가 핵심입니다.","복합성 피부는 부위별로 다른 관리가 필요합니다."],"highlight":"같은 제품보다 맞는 관리 기준이 더 중요합니다."},"extra_consideration":{"optional_future_key":{"title_box_label":"runtime supports it, but headline should stay the default prompt key"}}}
+{
+  "target": "SlideContent.pages[].slots",
+  "purpose": "prompt_contract",
+  "rules": [
+    "slots is semantic content only — do not put x, y, w, h or style fields in slots",
+    "use only the keys listed under variant_keys for the chosen slide_variant",
+    "bullets, left_points, right_points: 2 to 5 items",
+    "each bullet item: max 55 characters — longer text wraps and breaks the rendered layout",
+    "headline: max 45 characters — longer text overflows the title zone",
+    "body: max 90 characters — keep to 1 or 2 lines at 13pt",
+    "highlight: max 70 characters — must fit in the highlight card (approx 2.5 × 2.0 inches)",
+    "if elements is also present in the page, runtime renders elements and ignores slots"
+  ],
+  "content_fit_guidance": {
+    "why": "The renderer places each slot value into a fixed-size text box. Text that exceeds the box is silently clipped in PowerPoint. Write concise, single-idea text per slot.",
+    "headline": "1 line at 24pt. Max 45 chars. Prefer a noun phrase, not a full sentence.",
+    "body": "1–2 lines at 13pt. Max 90 chars. One short sentence that sets context.",
+    "eyebrow": "1 line at 14pt. Max 30 chars. Use a role label (e.g. 'Analysis', '해결 방안').",
+    "bullets": "1 line each at 15pt. Max 55 chars per item. Start each with an action verb or key noun.",
+    "left_points": "Same rules as bullets. Keep items symmetric with right_points in length.",
+    "right_points": "Same rules as bullets. Keep items symmetric with left_points in length.",
+    "highlight": "2–4 lines at 14pt bold. Max 70 chars total. One concise takeaway or insight.",
+    "people": "One name or title per item. Max 35 chars each."
+  },
+  "schema": {
+    "eyebrow": "string",
+    "headline": "string",
+    "body": "string",
+    "bullets": ["string"],
+    "left_points": ["string"],
+    "right_points": ["string"],
+    "highlight": "string",
+    "people": ["string"]
+  },
+  "variant_keys": {
+    "title_page":        ["eyebrow", "headline", "body", "people"],
+    "content_box_list":  ["headline", "body", "bullets", "highlight"],
+    "content_two_panel": ["headline", "left_points", "right_points"],
+    "content_sidebar":   ["headline", "bullets", "highlight"],
+    "content_split_band":["headline", "body", "left_points", "right_points"],
+    "content_compact":   ["headline", "bullets", "highlight"],
+    "closing_page":      ["headline", "body", "people"]
+  },
+  "example": {
+    "headline": "피부 타입별 관리 포인트",
+    "body": "피부 타입에 따라 관리 우선순위가 달라집니다.",
+    "bullets": [
+      "건성 피부는 수분 유지와 장벽 보호가 중요합니다.",
+      "지성 피부는 피지 조절과 자극 완화가 핵심입니다.",
+      "복합성 피부는 부위별로 다른 관리가 필요합니다."
+    ],
+    "highlight": "같은 제품보다 맞는 관리 기준이 더 중요합니다."
+  },
+  "extra_consideration": {
+    "optional_future_key": {
+      "title_box_label": "runtime supports it, but headline should stay the default prompt key"
+    }
+  }
+}

@@ -1,1 +1,107 @@
-{"target":"OutlineGenerationResult.outline[title]","purpose":"prompt_contract","rules":["outline is slide planning metadata, not page layout","each key under outline is a slide title","use only supported role, tone, and preferred_variant values","key_points should be concise source-grounded strings","page_size is an integer slide count hint"],"schema":{"id":"string","role":"problem_intro|detail|solution|summary|comparison|analysis","goal":"string","key_points":["string"],"tone":"informative|analytical|persuasive|closing|hook","description":"string","page_size":"int","preferred_variant":"title_page|content_box_list|content_two_panel|content_sidebar|content_split_band|content_compact|closing_page"},"value_constraints":{"page_size":{"type":"int","allowed":[1,2],"default":1},"key_points":{"type":"string[]","min_items":1,"max_items":5}},"example":{"문제 제기":{"id":"slide_01","role":"problem_intro","goal":"주제를 청중에게 자연스럽게 소개한다.","key_points":["핵심 문제를 한 문장으로 제시한다.","발표 흐름의 출발점을 만든다."],"tone":"hook","description":"발표 도입부에서 문제의식과 발표 방향을 짧고 명확하게 전달한다.","page_size":1,"preferred_variant":"title_page"},"원인 분석":{"id":"slide_02","role":"analysis","goal":"핵심 원인을 구조적으로 설명한다.","key_points":["원인을 두 갈래로 나누어 비교한다.","청중이 다음 해결책으로 자연스럽게 넘어가게 한다."],"tone":"analytical","description":"원인 요소를 구분해 보여주고 다음 슬라이드의 해결책과 연결한다.","page_size":1,"preferred_variant":"content_two_panel"}}}
+{
+  "target": "OutlineGenerationResult.outline[title]",
+  "purpose": "prompt_contract",
+  "structure_rules": {
+    "mandatory_first_slide": {
+      "role": "cover",
+      "tone": "hook",
+      "preferred_variant": "title_page",
+      "note": "Always the first entry. Title and presenter context."
+    },
+    "mandatory_last_slide": {
+      "role": "closing",
+      "tone": "closing",
+      "preferred_variant": "closing_page",
+      "note": "Always the last entry. Thank-you and presenter names."
+    },
+    "total_slides": "minimum 4, maximum 10 including cover and closing"
+  },
+  "rules": [
+    "outline is slide planning metadata, not page layout",
+    "each key under outline is a slide title",
+    "use only supported role, tone, and preferred_variant values",
+    "key_points should be concise source-grounded strings",
+    "page_size is an integer slide count hint",
+    "first slide must be cover (title_page), last slide must be closing (closing_page)"
+  ],
+  "schema": {
+    "id": "string",
+    "role": "cover|problem_intro|detail|solution|summary|comparison|analysis|closing",
+    "goal": "string",
+    "key_points": [
+      "string"
+    ],
+    "tone": "informative|analytical|persuasive|closing|hook",
+    "description": "string",
+    "page_size": "int",
+    "preferred_variant": "title_page|content_box_list|content_two_panel|content_sidebar|content_split_band|content_compact|content_card_grid|content_steps|content_highlight_split|closing_page"
+  },
+  "value_constraints": {
+    "page_size": {
+      "type": "int",
+      "allowed": [
+        1,
+        2
+      ],
+      "default": 1
+    },
+    "key_points": {
+      "type": "string[]",
+      "min_items": 1,
+      "max_items": 5
+    }
+  },
+  "example": {
+    "표지": {
+      "id": "slide_01",
+      "role": "cover",
+      "goal": "발표 제목과 발표자를 소개한다.",
+      "key_points": [
+        "발표 제목",
+        "발표자 이름"
+      ],
+      "tone": "hook",
+      "description": "발표의 첫 인상을 만드는 표지 슬라이드.",
+      "page_size": 1,
+      "preferred_variant": "title_page"
+    },
+    "원인 분석": {
+      "id": "slide_02",
+      "role": "analysis",
+      "goal": "핵심 원인을 구조적으로 설명한다.",
+      "key_points": [
+        "원인을 두 갈래로 나누어 비교한다.",
+        "청중이 다음 해결책으로 자연스럽게 넘어가게 한다."
+      ],
+      "tone": "analytical",
+      "description": "원인 요소를 구분해 보여주고 다음 슬라이드의 해결책과 연결한다.",
+      "page_size": 1,
+      "preferred_variant": "content_two_panel"
+    },
+    "마무리": {
+      "id": "slide_last",
+      "role": "closing",
+      "goal": "발표를 마무리하고 청중에게 감사를 전한다.",
+      "key_points": [
+        "핵심 메시지 한 줄 요약",
+        "발표자 연락처 또는 Q&A 안내"
+      ],
+      "tone": "closing",
+      "description": "간결하고 인상적인 마무리 슬라이드.",
+      "page_size": 1,
+      "preferred_variant": "closing_page"
+    }
+  },
+  "variant_selection_guide": {
+    "title_page": "cover slide — always first",
+    "closing_page": "closing slide — always last",
+    "content_card_grid": "2-5 distinct items that benefit from individual card layout (default for detail with 2-5 key_points)",
+    "content_steps": "sequential steps or process (use for solution role)",
+    "content_two_panel": "comparison or parallel concepts",
+    "content_split_band": "analysis with top summary band + two lower panels",
+    "content_sidebar": "strong key message + supporting detail list",
+    "content_highlight_split": "bold left callout + right bullet content",
+    "content_compact": "summary with highlight card (use for summary role)",
+    "content_box_list": "standard list with accent banner highlight (use when no other variant fits)"
+  }
+}
