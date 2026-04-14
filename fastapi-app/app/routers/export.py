@@ -67,3 +67,28 @@ async def export_pptx(req: ExportPptxRequest, request: Request) -> Response:
             "Content-Length": str(len(pptx_bytes)),
         },
     )
+
+
+@router.get("/export/notes/{project_id}")
+async def export_notes(project_id: int, request: Request) -> Response:
+    repo = request.app.state.project_repository
+    state: ProjectState | None = await repo.get(project_id)
+
+    if state is None:
+        raise HTTPException(status_code=404, detail=f"project not found: {project_id}")
+    if not state.notes:
+        raise HTTPException(status_code=404, detail="notes not found")
+
+    base_title = (state.title or "presentation").strip() or "presentation"
+    filename = f"{base_title}_대본.txt"
+    encoded = quote(filename, safe="")
+    notes_bytes = state.notes.encode("utf-8")
+
+    return Response(
+        content=notes_bytes,
+        media_type="text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded}",
+            "Content-Length": str(len(notes_bytes)),
+        },
+    )

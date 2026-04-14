@@ -186,6 +186,55 @@ def _extract_slide_bullets(slide: dict[str, Any]) -> list[str]:
     return bullets
 
 
+def _format_slide_note_source(slide: dict[str, Any]) -> str:
+    title = str(slide.get("title") or "Untitled Slide").strip() or "Untitled Slide"
+    lines = [f"# {title}"]
+
+    for page in slide.get("pages", []):
+        slots = page.get("slots", {})
+        for key in ("headline", "body", "highlight"):
+            value = slots.get(key)
+            if isinstance(value, str) and value.strip():
+                lines.append(value.strip())
+
+        for key in ("bullets", "left_points", "right_points", "people"):
+            value = slots.get(key, [])
+            if isinstance(value, list):
+                for item in value:
+                    text = str(item).strip()
+                    if text:
+                        lines.append(f"- {text}")
+
+        for element in page.get("elements", []):
+            element_type = str(element.get("type", "")).strip()
+            if element_type in {"text_box", "quote_box"}:
+                text = str(element.get("text", "")).strip()
+                if text:
+                    lines.append(text)
+            elif element_type == "bullet_list":
+                for item in element.get("items", []):
+                    text = str(item).strip()
+                    if text:
+                        lines.append(f"- {text}")
+            elif element_type == "image_placeholder":
+                description = str(element.get("description", "")).strip()
+                if description:
+                    lines.append(f"- 시각 자료: {description}")
+
+    if len(lines) == 1:
+        bullets = _extract_slide_bullets(slide)
+        if bullets:
+            lines.extend(f"- {bullet}" for bullet in bullets)
+        else:
+            lines.append("- 슬라이드 내용을 바탕으로 발표 노트를 작성")
+
+    return "\n".join(lines)
+
+
+def _format_slides_for_notes_prompt(slides: list[dict[str, Any]]) -> str:
+    return "\n\n".join(_format_slide_note_source(slide) for slide in slides)
+
+
 _ALL_VARIANTS = {
     "title_page", "content_box_list", "content_two_panel", "content_sidebar",
     "content_split_band", "content_compact", "content_card_grid", "content_steps",
@@ -442,16 +491,23 @@ Return valid JSON only: {{"notes": "..."}}.
 
 Rules:
 - The notes are a speaking script that explains the slides.
+- Write in a natural, presentation-like speaking tone.
 - Use the actual generated slide output as the primary source.
 - Do not invent a new structure unrelated to the slides.
 - You may add smooth transitions, but stay tightly coupled to slide titles and bullets.
-- Write one continuous script string in {language}.
+- Split the notes by slide.
+- Start each slide section with exactly `# {{slide title}}`.
+- Add a blank line between slide sections.
+- Under each heading, write that slide's speaker notes in {language}.
 
 Outline:
 {outline_json}
 
-Slides:
+Slides JSON:
 {slides_json}
+
+Slides Sectioned Reference:
+{slides_markdown}
 """
 
 _UPDATE_OUTLINE_PROMPT = """
@@ -743,19 +799,23 @@ class MockLLMClient(LLMClient):
         language: str,
         request_label: str = "",
     ) -> str:
+        slides_markdown = _format_slides_for_notes_prompt(slides)
         prompt = _GENERATE_NOTES_PROMPT.format(
             slides_json=json.dumps(slides, ensure_ascii=False)[:7000],
+            slides_markdown=slides_markdown[:7000],
             outline_json=json.dumps(outline, ensure_ascii=False)[:4000],
             language=language,
         )
-        lines: list[str] = []
+        sections: list[str] = []
         for slide in slides:
+            title = str(slide.get("title", "")).strip() or "Untitled Slide"
             bullets = _extract_slide_bullets(slide)
             if bullets:
-                lines.append(f"{slide.get('title', '')}에서는 {', '.join(bullets)}를 중심으로 설명합니다.")
+                body = f"{title}에서는 {', '.join(bullets)}를 중심으로 설명합니다."
             else:
-                lines.append(f"{slide.get('title', '')} 슬라이드를 설명합니다.")
-        response = {"notes": " ".join(lines)}
+                body = f"{title} 슬라이드를 설명합니다."
+            sections.append(f"# {title}\n{body}")
+        response = {"notes": "\n\n".join(sections)}
         label = _normalize_request_label(request_label, "notes")
         _log_llm_text("prompt", label, prompt)
         _log_llm_text("response", label, _to_log_text(response))
@@ -949,8 +1009,10 @@ class OpenAICompatibleLLMClient(LLMClient):
         language: str,
         request_label: str = "",
     ) -> str:
+        slides_markdown = _format_slides_for_notes_prompt(slides)
         prompt = _GENERATE_NOTES_PROMPT.format(
             slides_json=json.dumps(slides, ensure_ascii=False)[:7000],
+            slides_markdown=slides_markdown[:7000],
             outline_json=json.dumps(outline, ensure_ascii=False)[:4000],
             language=language,
         )
