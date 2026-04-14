@@ -134,30 +134,50 @@ export function usePPTGenerator() {
     setDownloadPending(true);
     setError(null);
     try {
-      const res = await fetch(`${backendUrl}/export/pptx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: projectId }),
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
+      const baseName = presentationTitle || "presentation";
 
-      if (!res.ok) throw new Error("\uB2E4\uC6B4\uB85C\uB4DC \uC2E4\uD328");
+      const [pptxRes, notesRes] = await Promise.all([
+        fetch(`${backendUrl}/export/pptx`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project_id: projectId }),
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+        fetch(`${backendUrl}/export/notes/${projectId}`, {
+          method: "GET",
+          signal: AbortSignal.timeout(TIMEOUT),
+        }),
+      ]);
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${presentationTitle || "presentation"}.pptx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      if (!pptxRes.ok) throw new Error("PPTX 다운로드 실패");
+
+      const pptxBlob = await pptxRes.blob();
+      const pptxUrl = window.URL.createObjectURL(pptxBlob);
+      const pptxLink = document.createElement("a");
+      pptxLink.href = pptxUrl;
+      pptxLink.download = `${baseName}.pptx`;
+      document.body.appendChild(pptxLink);
+      pptxLink.click();
+      document.body.removeChild(pptxLink);
+      window.URL.revokeObjectURL(pptxUrl);
+
+      if (notesRes.ok) {
+        const notesBlob = await notesRes.blob();
+        const notesUrl = window.URL.createObjectURL(notesBlob);
+        const notesLink = document.createElement("a");
+        notesLink.href = notesUrl;
+        notesLink.download = `${baseName}_대본.txt`;
+        document.body.appendChild(notesLink);
+        notesLink.click();
+        document.body.removeChild(notesLink);
+        window.URL.revokeObjectURL(notesUrl);
+      }
     } catch (err) {
       console.error("Download error:", err);
       setError(
         err instanceof Error
           ? err.message
-          : "\uB2E4\uC6B4\uB85C\uB4DC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4."
+          : "다운로드 중 오류가 발생했습니다."
       );
     } finally {
       setDownloadPending(false);
