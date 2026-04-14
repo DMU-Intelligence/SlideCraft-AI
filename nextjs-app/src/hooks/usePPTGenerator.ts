@@ -14,14 +14,14 @@ function getBackendUrl(): string {
   const raw = process.env.NEXT_PUBLIC_BACKEND_BASE_URL?.trim();
 
   if (!raw) {
-    throw new Error("NEXT_PUBLIC_BACKEND_BASE_URL 환경변수를 설정해주세요.");
+    return "";
   }
 
   try {
     const parsed = new URL(raw);
     return parsed.toString().replace(/\/$/, "");
   } catch {
-    throw new Error("NEXT_PUBLIC_BACKEND_BASE_URL 설정이 올바르지 않습니다.");
+    return "";
   }
 }
 
@@ -61,6 +61,11 @@ export function usePPTGenerator() {
 
   const generate = useCallback(async () => {
     if (!uploadedFile || !presentationTitle || generatePending) return;
+
+    if (!backendUrl) {
+      setError("NEXT_PUBLIC_BACKEND_BASE_URL 환경변수가 올바르게 설정되지 않았습니다.");
+      return;
+    }
 
     setPhase("loading");
     setGeneratePending(true);
@@ -121,6 +126,11 @@ export function usePPTGenerator() {
   const download = useCallback(async () => {
     if (!projectId || downloadPending) return;
 
+    if (!backendUrl) {
+      setError("NEXT_PUBLIC_BACKEND_BASE_URL 환경변수가 올바르게 설정되지 않았습니다.");
+      return;
+    }
+
     setDownloadPending(true);
     setError(null);
     try {
@@ -177,6 +187,8 @@ export function usePPTGenerator() {
 
   const reset = useCallback(() => {
     setPhase("upload");
+    setUploadedFile(null);
+    setPresentationTitle("");
     setSlides([]);
     setScript("");
     setCurrentSlideIndex(0);
