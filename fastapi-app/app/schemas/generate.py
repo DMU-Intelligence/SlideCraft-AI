@@ -26,6 +26,9 @@ class OutlineItem(BaseModel):
         "content_sidebar",
         "content_split_band",
         "content_compact",
+        "content_card_grid",
+        "content_steps",
+        "content_highlight_split",
         "closing_page",
     ] | None = None
 
@@ -120,7 +123,7 @@ class ShapeElement(PositionedElement):
 class BulletListElement(PositionedElement):
     type: Literal["bullet_list"] = "bullet_list"
     items: list[str]
-    bullet_char: str = "-"
+    bullet_char: str = "•"
     bullet_color: str = "#5B8DEF"
     font_name: str = "Malgun Gothic"
     font_size: int = 16
@@ -137,8 +140,14 @@ class BulletListElement(PositionedElement):
         return normalized
 
 
+class ImagePlaceholderElement(PositionedElement):
+    type: Literal["image_placeholder"] = "image_placeholder"
+    description: str = ""
+    label: str = "이미지를 삽입하세요"
+
+
 SlideElement = Annotated[
-    Union[TextBoxElement, ShapeElement, BulletListElement],
+    Union[TextBoxElement, ShapeElement, BulletListElement, ImagePlaceholderElement],
     Field(discriminator="type"),
 ]
 
@@ -196,6 +205,9 @@ class SlideContent(BaseModel):
         "content_sidebar",
         "content_split_band",
         "content_compact",
+        "content_card_grid",
+        "content_steps",
+        "content_highlight_split",
         "closing_page",
     ] = "content_box_list"
     pages: list[PageLayout] = Field(default_factory=list)
@@ -222,6 +234,7 @@ class GenerateOutlineRequest(BaseModel):
 class OutlineGenerationResult(BaseModel):
     title: str
     outline: dict[str, OutlineItem]
+    theme: str = "clean_light"
 
 
 class GenerateOutlineResponse(BaseModel):

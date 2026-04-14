@@ -1,1 +1,750 @@
-{"target":"SlideContent.pages[].elements[]","purpose":"prompt_contract","canvas":{"unit":"inches","width":13.33,"height":7.5},"rules":["use x, y, w, h","supported types: text_box, shape, bullet_list","keep elements inside canvas","avoid overlap unless clearly intentional","bullet_list items: 2 to 5","elements is the primary render contract"],"types":{"text_box":{"required":["type","text","x","y","w","h"],"optional":{"font_name":"Malgun Gothic","font_size":16,"font_bold":false,"font_color":"#FFFFFF","align":"left|center|right"}},"shape":{"required":["type","shape_type","x","y","w","h"],"optional":{"shape_type":"rectangle|round_rectangle","fill_color":"#5B8DEF"}},"bullet_list":{"required":["type","items","x","y","w","h"],"optional":{"bullet_char":"-","bullet_color":"#5B8DEF","font_name":"Malgun Gothic","font_size":16,"font_color":"#1E293B"}}},"variant_composition":{"title_page":["1+ shape","2+ text_box"],"content_box_list":["1 large panel shape","1 title text_box","1 bullet_list","optional 1 accent shape"],"content_two_panel":["2 side-by-side panel shapes","split content across columns"],"content_sidebar":["1 narrow sidebar shape","1 main content panel shape"],"content_split_band":["1 top band shape","2 lower panel shapes"],"content_compact":["1 main panel shape","1 smaller highlight card shape"],"closing_page":["panel or accent shapes","centered main message"]},"example_page":[{"type":"shape","shape_type":"rectangle","x":0.9,"y":1.7,"w":11.3,"h":4.9,"fill_color":"#FFFFFF"},{"type":"text_box","text":"피부 타입별 관리 포인트","x":1.0,"y":0.55,"w":8.8,"h":0.85,"font_name":"Malgun Gothic","font_size":28,"font_bold":true,"font_color":"#0F172A","align":"left"},{"type":"bullet_list","x":1.25,"y":2.1,"w":7.2,"h":3.8,"items":["건성 피부는 수분 유지가 중요합니다.","지성 피부는 유분 조절이 핵심입니다.","복합성 피부는 부위별 접근이 필요합니다."],"bullet_char":"-","bullet_color":"#2563EB","font_name":"Malgun Gothic","font_size":16,"font_color":"#1E293B"},{"type":"shape","shape_type":"rectangle","x":9.1,"y":2.05,"w":2.8,"h":2.4,"fill_color":"#E8EEF9"},{"type":"text_box","text":"같은 제품보다 맞는 관리 기준이 더 중요합니다.","x":9.45,"y":2.35,"w":2.15,"h":1.7,"font_name":"Malgun Gothic","font_size":15,"font_bold":true,"font_color":"#0F172A","align":"left"}],"future_types":{"recommended_if_extended":[{"type":"image","why":"real photo, figure, screenshot, diagram placement cannot be expressed well with current types"},{"type":"table","why":"structured comparison or numeric data loses fidelity when flattened into bullets"},{"type":"chart","why":"trend, ratio, and series data should not be represented only as text"}]}}
+{
+  "target": "SlideContent.pages[].elements[]",
+  "purpose": "prompt_contract",
+  "canvas": {
+    "unit": "inches",
+    "width": 13.33,
+    "height": 7.5
+  },
+  "layout_grid": {
+    "safe_zone": {
+      "x_min": 0.75,
+      "x_max": 12.58,
+      "y_min": 0.45,
+      "y_max": 7.1
+    },
+    "header_zone": {
+      "y_start": 0.45,
+      "y_end": 1.0,
+      "description": "slide title only — no other content may start here"
+    },
+    "content_zone": {
+      "y_start": 1.1,
+      "y_end": 7.0,
+      "description": "all body content — panels, bullets, highlight cards"
+    },
+    "left_margin": 0.75,
+    "column_gap": 0.3,
+    "full_content_width": 11.83,
+    "half_column_width": 5.77
+  },
+  "text_fit_rules": {
+    "critical": "Text that exceeds its container is silently clipped in PowerPoint. Always verify h is large enough.",
+    "line_height_inches_per_pt": 0.028,
+    "buffer_inches": 0.15,
+    "formula": "h >= font_size × line_count × 0.028 + 0.15",
+    "quick_reference": {
+      "24pt_1line": "h >= 0.82",
+      "16pt_1line": "h >= 0.60",
+      "15pt_3lines": "h >= 1.41",
+      "15pt_5lines": "h >= 2.25",
+      "14pt_4lines": "h >= 1.72"
+    },
+    "bullet_list_height": "items.length × 0.45 (minimum) — use 0.50 per item for safety"
+  },
+  "rules": [
+    "use x, y, w, h in inches",
+    "supported types: text_box, shape, bullet_list",
+    "ALL elements must stay within safe_zone: x>=0.75, x+w<=12.58, y>=0.45, y+h<=7.1",
+    "slide title text_box MUST be placed in header_zone: y in [0.45, 0.95], h=0.55",
+    "NO body element may have y < 1.1 — content zone starts at y=1.1",
+    "maintain consistent left alignment: left-edge elements share x=0.75 or x=1.05",
+    "shapes must appear BEFORE the text_box elements that sit on top of them",
+    "verify that no text_box bounding box clips another element's text area",
+    "bullet_list: 2 to 5 items, each item max 55 characters — longer text wraps and pushes items out of frame",
+    "text_box with font_size 16 and h < 0.60 will clip text — always apply text_fit_rules formula",
+    "for two-column layouts: left column x=0.75, right column x=6.82 (gap=0.3 between columns)",
+    "elements is the primary render contract — if elements is present, slots are ignored"
+  ],
+  "types": {
+    "text_box": {
+      "required": [
+        "type",
+        "text",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "optional": {
+        "font_name": "Malgun Gothic",
+        "font_size": 16,
+        "font_bold": false,
+        "font_color": "#FFFFFF",
+        "align": "left|center|right"
+      },
+      "fit_guidance": "Apply formula: h >= font_size × line_count × 0.028 + 0.15. Count lines by estimating characters per line at the given width and font_size."
+    },
+    "shape": {
+      "required": [
+        "type",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "optional": {
+        "shape_type": "rectangle|round_rectangle",
+        "fill_color": "#5B8DEF"
+      }
+    },
+    "bullet_list": {
+      "required": [
+        "type",
+        "items",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "optional": {
+        "bullet_char": "• | ▸ | ◆ | – | ›",
+        "bullet_color": "#5B8DEF",
+        "font_name": "Malgun Gothic",
+        "font_size": 15,
+        "font_color": "#1E293B"
+      },
+      "bullet_char_guide": {
+        "•": "neutral informative content (default)",
+        "▸": "step-by-step or sequential points",
+        "◆": "key findings or conclusions",
+        "–": "comparisons or contrasts",
+        "›": "sub-points or supporting details"
+      },
+      "fit_guidance": "Set h >= items.length × 0.50. Each item must be <= 55 characters; if longer, it wraps and the following items overflow out of frame."
+    },
+    "image_placeholder": {
+      "required": [
+        "type",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "optional": {
+        "description": "concise instruction for the user, e.g. '조직도 이미지' or '데이터 비교 그래프'",
+        "label": "default: '이미지를 삽입하세요'"
+      },
+      "when_to_use": "Add when a diagram, process flow, comparison chart, photograph, or data visualization would genuinely aid understanding. Do not add just to fill space.",
+      "placement": "Place where the image would naturally appear in the layout — e.g. right half of a two-panel slide, or the center of a sidebar layout.",
+      "fit_guidance": "Minimum w=2.5, h=1.5. A good image placeholder is at least 3×2 inches to be useful."
+    }
+  },
+  "variant_coordinate_templates": {
+    "title_page": {
+      "description": "Vertical left accent bar, headline, body subtitle, presenter names bottom-right. No eyebrow label.",
+      "column_structure": "single — no content split",
+      "template": [
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 0.0,
+          "w": 0.18,
+          "h": 7.5,
+          "fill_color": "THEME_ACCENT",
+          "note": "left accent bar — spans full slide height"
+        },
+        {
+          "type": "text_box",
+          "text": "HEADLINE",
+          "x": 1.1,
+          "y": 2.35,
+          "w": 9.5,
+          "h": 1.6,
+          "font_size": 34,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "main title — up to 2 lines; increase h if title is long"
+        },
+        {
+          "type": "text_box",
+          "text": "BODY",
+          "x": 1.1,
+          "y": 4.15,
+          "w": 8.2,
+          "h": 0.55,
+          "font_size": 16,
+          "font_bold": false,
+          "font_color": "THEME_MUTED",
+          "align": "left",
+          "note": "subtitle or single-sentence context — max 80 chars"
+        },
+        {
+          "type": "text_box",
+          "text": "PRESENTER_NAMES",
+          "x": 9.3,
+          "y": 6.5,
+          "w": 3.03,
+          "h": 0.65,
+          "font_size": 11,
+          "font_bold": false,
+          "font_color": "THEME_MUTED",
+          "align": "right",
+          "note": "one name per line — bottom-right anchor, max 35 chars each"
+        }
+      ]
+    },
+    "content_box_list": {
+      "description": "Title at top, full-width accent banner with highlight, thin left stripe, clean bullet list — NO white background panel, NO right-side card",
+      "column_structure": "single column — accent banner + stripe + bullets stacked vertically",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title — max 45 chars"
+        },
+        {
+          "type": "text_box",
+          "text": "BODY",
+          "x": 0.75,
+          "y": 1.05,
+          "w": 11.83,
+          "h": 0.38,
+          "font_size": 13,
+          "font_bold": false,
+          "font_color": "THEME_MUTED",
+          "align": "left",
+          "note": "subtitle — 1 line, max 80 chars; omit if empty"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.65,
+          "w": 11.83,
+          "h": 1.1,
+          "fill_color": "THEME_ACCENT",
+          "note": "accent banner — full width, must appear BEFORE highlight text_box"
+        },
+        {
+          "type": "text_box",
+          "text": "HIGHLIGHT",
+          "x": 1.05,
+          "y": 1.75,
+          "w": 11.23,
+          "h": 0.82,
+          "font_size": 18,
+          "font_bold": true,
+          "font_color": "THEME_INVERSE_TEXT",
+          "align": "left",
+          "note": "highlight on accent banner — max 70 chars, white text, 1-2 lines"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 3.0,
+          "w": 0.06,
+          "h": 3.9,
+          "fill_color": "THEME_ACCENT",
+          "note": "thin vertical accent stripe — left edge beside bullets"
+        },
+        {
+          "type": "bullet_list",
+          "x": 1.1,
+          "y": 3.1,
+          "w": 11.23,
+          "h": "items.length x 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "bullet list — no background panel; y=3.1 when highlight banner present"
+        }
+      ],
+      "without_highlight": {
+        "note": "If no highlight, omit accent banner and highlight text_box; set stripe y=1.75 h=5.15; set bullets y=1.85"
+      }
+    },
+    "content_two_panel": {
+      "description": "Title in header, two equal columns side by side",
+      "column_structure": "symmetric — left column x=0.75 w=5.77, right column x=6.82 w=5.76",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title — max 45 chars"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.1,
+          "w": 5.77,
+          "h": 5.9,
+          "fill_color": "THEME_PANEL",
+          "note": "left column panel"
+        },
+        {
+          "type": "shape",
+          "x": 6.82,
+          "y": 1.1,
+          "w": 5.76,
+          "h": 5.9,
+          "fill_color": "THEME_SOFT_PANEL",
+          "note": "right column panel — x = 0.75 + 5.77 + 0.30"
+        },
+        {
+          "type": "bullet_list",
+          "x": 1.05,
+          "y": 1.5,
+          "w": 5.17,
+          "h": "left_items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "left bullets — x=1.05 keeps 0.30 padding from left panel edge"
+        },
+        {
+          "type": "bullet_list",
+          "x": 7.12,
+          "y": 1.5,
+          "w": 5.17,
+          "h": "right_items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "right bullets — x=7.12 keeps 0.30 padding from right panel edge"
+        }
+      ]
+    },
+    "content_sidebar": {
+      "description": "Title in header, narrow accent sidebar left, wide content panel right",
+      "column_structure": "asymmetric — sidebar x=0.75 w=2.8, content x=3.85 w=8.73",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title — max 45 chars"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.1,
+          "w": 2.8,
+          "h": 5.9,
+          "fill_color": "THEME_ACCENT",
+          "note": "accent sidebar — full content-zone height"
+        },
+        {
+          "type": "text_box",
+          "text": "HIGHLIGHT",
+          "x": 0.9,
+          "y": 2.6,
+          "w": 2.5,
+          "h": 3.0,
+          "font_size": 15,
+          "font_bold": true,
+          "font_color": "THEME_INVERSE_TEXT",
+          "align": "center",
+          "note": "sidebar label — vertically centered; max 50 chars; use \\n for line breaks"
+        },
+        {
+          "type": "shape",
+          "x": 3.85,
+          "y": 1.1,
+          "w": 8.73,
+          "h": 5.9,
+          "fill_color": "THEME_PANEL",
+          "note": "main content panel"
+        },
+        {
+          "type": "bullet_list",
+          "x": 4.15,
+          "y": 1.5,
+          "w": 8.13,
+          "h": "items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "bullets inside main panel — 0.30 padding from panel edge"
+        }
+      ]
+    },
+    "content_split_band": {
+      "description": "Title in header, horizontal summary band, two lower panels",
+      "column_structure": "band full-width + two columns below: left x=0.75 w=5.77, right x=6.82 w=5.76",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title — max 45 chars"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.1,
+          "w": 11.83,
+          "h": 1.05,
+          "fill_color": "THEME_SOFT_PANEL",
+          "note": "summary band — full width"
+        },
+        {
+          "type": "text_box",
+          "text": "BODY_SUMMARY",
+          "x": 1.05,
+          "y": 1.22,
+          "w": 11.23,
+          "h": 0.75,
+          "font_size": 15,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "center",
+          "note": "single-line summary inside band — max 75 chars; do not exceed h=0.75"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 2.35,
+          "w": 5.77,
+          "h": 4.65,
+          "fill_color": "THEME_PANEL",
+          "note": "left lower panel"
+        },
+        {
+          "type": "shape",
+          "x": 6.82,
+          "y": 2.35,
+          "w": 5.76,
+          "h": 4.65,
+          "fill_color": "THEME_PANEL",
+          "note": "right lower panel"
+        },
+        {
+          "type": "bullet_list",
+          "x": 1.05,
+          "y": 2.7,
+          "w": 5.17,
+          "h": "left_items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "left bullets — start 0.35 below panel top"
+        },
+        {
+          "type": "bullet_list",
+          "x": 7.12,
+          "y": 2.7,
+          "w": 5.17,
+          "h": "right_items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "right bullets — same y as left for visual symmetry"
+        }
+      ]
+    },
+    "content_compact": {
+      "description": "Title in header, full-width panel, bullets left portion, highlight card right",
+      "column_structure": "single panel with internal split — bullets occupy left 50%, highlight card right 25%",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title — max 45 chars"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.1,
+          "w": 11.83,
+          "h": 5.9,
+          "fill_color": "THEME_PANEL",
+          "note": "full-width main panel — must be first"
+        },
+        {
+          "type": "bullet_list",
+          "x": 1.05,
+          "y": 1.5,
+          "w": 6.5,
+          "h": "items.length × 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "bullets in left portion of panel — max w=6.5 to leave room for card"
+        },
+        {
+          "type": "shape",
+          "x": 8.2,
+          "y": 1.5,
+          "w": 3.13,
+          "h": 4.5,
+          "fill_color": "THEME_SOFT_PANEL",
+          "note": "highlight card — right side, inside main panel"
+        },
+        {
+          "type": "text_box",
+          "text": "HIGHLIGHT",
+          "x": 8.45,
+          "y": 1.9,
+          "w": 2.6,
+          "h": 3.7,
+          "font_size": 14,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "center",
+          "note": "highlight text inside card — max 70 chars; up to 5 short lines"
+        }
+      ]
+    },
+    "closing_page": {
+      "description": "Full-width panel, thin accent top bar, centered thank-you, subtext, presenter names",
+      "column_structure": "single — all elements centered",
+      "template": [
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.0,
+          "w": 11.83,
+          "h": 5.5,
+          "fill_color": "THEME_PANEL",
+          "note": "main closing panel"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.0,
+          "w": 11.83,
+          "h": 0.25,
+          "fill_color": "THEME_ACCENT",
+          "note": "accent top bar — placed after main panel to be on top"
+        },
+        {
+          "type": "text_box",
+          "text": "THANK_YOU_HEADLINE",
+          "x": 1.05,
+          "y": 2.2,
+          "w": 11.23,
+          "h": 1.1,
+          "font_size": 40,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "center",
+          "note": "main closing headline — e.g. '감사합니다' — 1 line, max 15 chars"
+        },
+        {
+          "type": "text_box",
+          "text": "BODY_SUBTEXT",
+          "x": 2.0,
+          "y": 3.5,
+          "w": 9.33,
+          "h": 0.55,
+          "font_size": 16,
+          "font_bold": false,
+          "font_color": "THEME_MUTED",
+          "align": "center",
+          "note": "closing subtext — 1 line, max 45 chars"
+        },
+        {
+          "type": "text_box",
+          "text": "PRESENTER_NAMES",
+          "x": 2.5,
+          "y": 4.3,
+          "w": 8.33,
+          "h": 1.5,
+          "font_size": 15,
+          "font_bold": false,
+          "font_color": "THEME_MUTED",
+          "align": "center",
+          "note": "presenter names — one per line, max 35 chars each"
+        }
+      ]
+    },
+    "content_card_grid": {
+      "description": "Individual numbered cards per bullet item — layout adjusts automatically based on count (2=2col, 3=3col, 4=2x2grid, 5=3+2)",
+      "column_structure": "dynamic grid based on items.length",
+      "slot_driven": true,
+      "note": "Use slots.bullets (2-5 items). The renderer creates individual panels per item automatically. For elements path, generate one shape+text_box+text_box set per bullet item using the formulas below.",
+      "per_card_structure": [
+        {
+          "type": "shape",
+          "note": "card background panel"
+        },
+        {
+          "type": "shape",
+          "note": "top accent bar (h=0.20) at same x,y as card"
+        },
+        {
+          "type": "text_box",
+          "text": "NUMBER",
+          "font_size": 22,
+          "font_bold": true,
+          "font_color": "THEME_ACCENT",
+          "note": "item number, top-left of card, offset y+0.28"
+        },
+        {
+          "type": "text_box",
+          "text": "BULLET_TEXT",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "item text, offset y+0.78 from card top"
+        }
+      ],
+      "coordinate_formulas": {
+        "2_items": "each card: w=(11.83-0.28)/2=5.775, h=5.7; x=[0.75, 6.825]",
+        "3_items": "each card: w=(11.83-0.56)/3=3.757, h=5.7; x=[0.75, 4.507, 8.264]",
+        "4_items": "2x2 grid: w=5.775, h=2.71, gap=0.28; row0 y=1.55, row1 y=4.54",
+        "5_items": "top 3: w=3.757, h=2.71; bottom 2: w=5.775, h=2.71; center-aligned"
+      }
+    },
+    "content_steps": {
+      "description": "Sequential numbered steps: left accent number box + right text panel per step, connected by thin vertical line",
+      "column_structure": "single column — vertical stack of step rows",
+      "slot_driven": true,
+      "note": "Use slots.bullets (2-5 items). For elements path, generate per-step: number shape + number text_box + connector shape + text panel shape + text_box.",
+      "step_structure": [
+        {
+          "type": "shape",
+          "note": "number box: x=0.75, w=0.85, h=step_h, fill=THEME_ACCENT"
+        },
+        {
+          "type": "text_box",
+          "text": "N",
+          "align": "center",
+          "font_size": 24,
+          "font_color": "THEME_INVERSE_TEXT",
+          "font_bold": true,
+          "note": "centered in number box"
+        },
+        {
+          "type": "shape",
+          "note": "thin connector line: x=1.145, w=0.06, h=gap, fill=THEME_SOFT_PANEL (between steps)"
+        },
+        {
+          "type": "shape",
+          "note": "text panel: x=1.82, w=10.76, h=step_h, fill=THEME_PANEL"
+        },
+        {
+          "type": "text_box",
+          "text": "STEP_TEXT",
+          "font_size": 17,
+          "font_color": "THEME_TEXT",
+          "note": "inside text panel, vertically centered"
+        }
+      ],
+      "coordinate_formulas": {
+        "step_height": "min(1.35, (5.6 - (count-1)*0.22) / count)",
+        "gap": "(5.6 - count*step_h) / (count-1)",
+        "start_y": "1.6",
+        "num_box": "x=0.75, w=0.85",
+        "text_panel": "x=1.82, w=10.76"
+      }
+    },
+    "content_highlight_split": {
+      "description": "Large accent-colored left panel with bold callout text + right panel with bullet list",
+      "column_structure": "asymmetric — left accent w=3.9 (33%), right content w=7.63 (64%)",
+      "template": [
+        {
+          "type": "text_box",
+          "text": "SLIDE_TITLE",
+          "x": 0.75,
+          "y": 0.45,
+          "w": 11.83,
+          "h": 0.55,
+          "font_size": 24,
+          "font_bold": true,
+          "font_color": "THEME_TEXT",
+          "align": "left",
+          "note": "header zone title"
+        },
+        {
+          "type": "shape",
+          "x": 0.75,
+          "y": 1.55,
+          "w": 3.9,
+          "h": 5.7,
+          "fill_color": "THEME_ACCENT",
+          "note": "left accent panel — full content height"
+        },
+        {
+          "type": "text_box",
+          "text": "HIGHLIGHT",
+          "x": 0.98,
+          "y": 2.3,
+          "w": 3.45,
+          "h": 3.8,
+          "font_size": 20,
+          "font_bold": true,
+          "font_color": "THEME_INVERSE_TEXT",
+          "align": "left",
+          "note": "bold callout — max 80 chars, plain-form ending, vertically centered in panel"
+        },
+        {
+          "type": "shape",
+          "x": 5.35,
+          "y": 1.55,
+          "w": 7.23,
+          "h": 5.7,
+          "fill_color": "THEME_PANEL",
+          "note": "right content panel; x = 0.75 + 3.9 + 0.7"
+        },
+        {
+          "type": "bullet_list",
+          "x": 5.65,
+          "y": 1.95,
+          "w": 6.63,
+          "h": "items.length x 0.50",
+          "font_size": 15,
+          "font_color": "THEME_TEXT",
+          "note": "bullet list inside right panel — 0.30 padding from panel edge"
+        }
+      ]
+    }
+  },
+  "anti_patterns": [
+    "WRONG: text_box with h=0.3 and font_size=16 — applies text_fit_rules formula: 16×1×0.028+0.15=0.60, so h must be at least 0.60",
+    "WRONG: bullet_list with 4 items and h=0.8 — must be at least 4×0.50=2.0",
+    "WRONG: placing any content element at y < 1.1 — header zone reserved for title only",
+    "WRONG: title text_box at y=2.5 — must be in header_zone [0.45, 0.95]",
+    "WRONG: text_box at x=10.0 with w=4.0 — x+w=14.0 exceeds canvas (max 12.58)",
+    "WRONG: text_box w > 11.83 — exceeds full_content_width",
+    "WRONG: bullet item longer than 55 chars — wraps and pushes remaining items out of h",
+    "WRONG: text_box before shape when text_box is meant to overlay the shape — shape must come first in the elements array"
+  ],
+  "future_types": {
+    "recommended_if_extended": [
+      {
+        "type": "image",
+        "why": "real photo, figure, screenshot, diagram placement cannot be expressed well with current types"
+      },
+      {
+        "type": "table",
+        "why": "structured comparison or numeric data loses fidelity when flattened into bullets"
+      },
+      {
+        "type": "chart",
+        "why": "trend, ratio, and series data should not be represented only as text"
+      }
+    ]
+  }
+}

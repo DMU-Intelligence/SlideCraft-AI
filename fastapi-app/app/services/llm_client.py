@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 _FASTAPI_APP_DIR = Path(__file__).resolve().parents[2]
 _CANONICAL_SLIDE_VARIANTS = (
     "title_page|content_box_list|content_two_panel|content_sidebar|"
-    "content_split_band|content_compact|closing_page"
+    "content_split_band|content_compact|content_card_grid|content_steps|"
+    "content_highlight_split|closing_page"
 )
 
 
@@ -65,6 +67,39 @@ def _to_log_text(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _bridge_retry_attempts() -> int:
+    try:
+        return max(1, int(os.getenv("CLI_BRIDGE_MAX_ATTEMPTS", "6")))
+    except ValueError:
+        return 6
+
+
+def _bridge_retry_delay_seconds() -> float:
+    try:
+        return max(0.25, float(os.getenv("CLI_BRIDGE_RETRY_DELAY_SECONDS", "2.0")))
+    except ValueError:
+        return 2.0
+
+
+def _extract_bridge_error(response: httpx.Response) -> tuple[str, dict[str, Any] | None]:
+    payload: dict[str, Any] | None = None
+    detail = ""
+    try:
+        parsed = response.json()
+        if isinstance(parsed, dict):
+            payload = parsed
+            detail_value = parsed.get("detail")
+            if detail_value:
+                detail = f": {detail_value}"
+            elif parsed:
+                detail = f": {json.dumps(parsed, ensure_ascii=False)[:300]}"
+    except Exception:
+        body = (response.text or "").strip()
+        if body:
+            detail = f": {body[:300]}"
+    return detail, payload
+
+
 async def _call_cli_bridge(
     *,
     url_env_var: str,
@@ -74,37 +109,58 @@ async def _call_cli_bridge(
 ) -> str:
     url = os.getenv(url_env_var, default_url).rstrip("/")
     full_prompt = "Return only valid JSON. No explanation, no markdown fences.\n\n" + prompt
+    max_attempts = _bridge_retry_attempts()
+    retry_delay = _bridge_retry_delay_seconds()
 
-    try:
-        async with httpx.AsyncClient(timeout=300) as client:
-            response = await client.post(
-                f"{url}/generate",
-                json={"prompt": full_prompt},
+    async with httpx.AsyncClient(timeout=300) as client:
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = await client.post(
+                    f"{url}/generate",
+                    json={"prompt": full_prompt},
+                )
+            except httpx.ConnectError as exc:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "%s bridge connection failed on attempt %s/%s; retrying in %.2fs",
+                        bridge_name,
+                        attempt,
+                        max_attempts,
+                        retry_delay,
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                raise RuntimeError(
+                    f"{bridge_name} bridge server connection failed: {url}/generate "
+                    f"(set {url_env_var} or start the bridge server)"
+                ) from exc
+
+            if response.is_success:
+                data = response.json()
+                return str(data["response"])
+
+            detail, payload = _extract_bridge_error(response)
+            will_retry = bool(payload.get("willRetry")) if isinstance(payload, dict) else False
+            retryable_status = response.status_code in {502, 503, 504}
+            if retryable_status and attempt < max_attempts and (will_retry or response.status_code == 502):
+                logger.warning(
+                    "%s bridge returned %s on attempt %s/%s; retrying in %.2fs%s",
+                    bridge_name,
+                    response.status_code,
+                    attempt,
+                    max_attempts,
+                    retry_delay,
+                    detail,
+                )
+                await asyncio.sleep(retry_delay)
+                continue
+
+            raise RuntimeError(
+                f"{bridge_name} bridge server returned {response.status_code} for "
+                f"{url}/generate{detail}"
             )
-            response.raise_for_status()
-            data = response.json()
-    except httpx.ConnectError as exc:
-        raise RuntimeError(
-            f"{bridge_name} bridge server connection failed: {url}/generate "
-            f"(set {url_env_var} or start the bridge server)"
-        ) from exc
-    except httpx.HTTPStatusError as exc:
-        detail = ""
-        try:
-            payload = exc.response.json()
-            detail_value = payload.get("detail")
-            if detail_value:
-                detail = f": {detail_value}"
-        except Exception:
-            body = (exc.response.text or "").strip()
-            if body:
-                detail = f": {body[:300]}"
-        raise RuntimeError(
-            f"{bridge_name} bridge server returned {exc.response.status_code} for "
-            f"{url}/generate{detail}"
-        ) from exc
 
-    return str(data["response"])
+    raise RuntimeError(f"{bridge_name} bridge request exhausted retries for {url}/generate")
 
 
 def _parse_json(text: str) -> dict[str, Any]:
@@ -130,31 +186,36 @@ def _extract_slide_bullets(slide: dict[str, Any]) -> list[str]:
     return bullets
 
 
+_ALL_VARIANTS = {
+    "title_page", "content_box_list", "content_two_panel", "content_sidebar",
+    "content_split_band", "content_compact", "content_card_grid", "content_steps",
+    "content_highlight_split", "closing_page",
+}
+
+
 def _pick_slide_variant(slide_info: dict[str, Any]) -> str:
     preferred_variant = str(slide_info.get("preferred_variant") or "").strip()
-    if preferred_variant in {
-        "title_page",
-        "content_box_list",
-        "content_two_panel",
-        "content_sidebar",
-        "content_split_band",
-        "content_compact",
-        "closing_page",
-    }:
+    if preferred_variant in _ALL_VARIANTS:
         return preferred_variant
 
     role = str(slide_info.get("role", "")).strip().lower()
     key_points = slide_info.get("key_points", [])
-    if role == "problem_intro":
+    n = len(key_points) if isinstance(key_points, list) else 0
+
+    if role in {"cover", "problem_intro"}:
         return "title_page"
+    if role == "closing":
+        return "closing_page"
     if role == "analysis":
         return "content_split_band"
-    if role in {"summary", "solution"}:
+    if role == "solution":
+        return "content_steps"
+    if role == "summary":
         return "content_compact"
     if role == "comparison":
         return "content_two_panel"
-    if isinstance(key_points, list) and len(key_points) >= 4:
-        return "content_two_panel"
+    if 2 <= n <= 5:
+        return "content_card_grid"
     return "content_box_list"
 
 
@@ -262,14 +323,25 @@ Context:
 - Presentation goal: {presentation_goal}
 - Target audience: {target_audience}
 
-Return:
+Return at the top level:
 - "title": concise presentation title
+- "theme": one of "clean_light" | "bold_dark" | "editorial"
+  All three themes use cool color palettes only.
+  - "clean_light": professional, educational, or general-purpose content (light blue palette)
+  - "bold_dark": high-impact, persuasive, or executive presentations (deep navy palette)
+  - "editorial": academic, research, or technical deep-dives (indigo/slate palette)
 - "outline": object keyed by slide title
 
 Outline prompt contract:
 {outline_schema_json}
 
-Constraints:
+Structure rules (mandatory):
+- The outline MUST start with a cover slide: role="cover", tone="hook", preferred_variant="title_page".
+- The outline MUST end with a closing slide: role="closing", tone="closing", preferred_variant="closing_page".
+- All slides between cover and closing are content slides.
+- Total slides including cover and closing: minimum 4, maximum 10.
+
+Content constraints:
 - Create slide-level entries, not section-only headings.
 - Make the title specific and natural.
 - Keep flow coherent for a general audience.
@@ -291,7 +363,7 @@ Response schema:
 Slots prompt contract:
 {slots_schema_json}
 
-Elements prompt contract:
+Elements prompt contract (includes variant_coordinate_templates and layout_grid):
 {elements_schema_json}
 
 Presentation context:
@@ -305,17 +377,59 @@ Current slide contract:
 
 Rules:
 - This is a fill-in task based on the slide contract, not a free rewrite.
-- Prefer elements as the primary representation.
-- If you include slots, follow the slots prompt contract exactly.
-- If you include elements, follow the elements prompt contract exactly.
-- Use one canonical slide_variant only.
-- Make the chosen slide_variant visible in the layout, not only in metadata.
+- ALWAYS use elements as the primary representation. Do not use slots alone.
+- Start from the variant_coordinate_templates entry that matches the chosen slide_variant. Use those x, y, w, h values as your baseline and adjust only when content length requires it.
+
+LAYOUT DISCIPLINE — every generated page must satisfy ALL of the following:
+1. Slide title text_box: y in [0.45, 0.95], h=0.55, x=0.75, font_size >= 22, font_bold=true.
+2. No body element (bullet_list, shape, non-title text_box) may have y < 1.1.
+3. All elements must be within safe_zone: x >= 0.75, x+w <= 12.58, y >= 0.45, y+h <= 7.1.
+4. Text fit: every text_box must satisfy h >= font_size * line_count * 0.028 + 0.15. Estimate line_count by dividing character count by (w * 7) rounded up.
+5. Bullet list fit: h >= items.length * 0.50. Truncate item text to 55 chars if needed.
+6. Shape layering: shapes that act as panel backgrounds must appear BEFORE the text_box or bullet_list elements that sit on top of them in the elements array.
+7. Left alignment: all left-edge elements share x=0.75 or x=1.05. Do not use arbitrary x values that break the column grid.
+8. Two-column layouts: left column x=0.75 w=5.77, right column x=6.82 w=5.76. Maintain the 0.30 gap.
+
+CONTENT RULES:
+- Use one canonical slide_variant only. Reflect it in both metadata and the actual layout.
 - Reflect the slide goal and key_points directly.
 - Use only source-backed content.
 - Keep wording easy for non-experts.
-- Never exceed 5 bullet items in one bullet_list or slots list.
-- If the slide is an opening slide and people info exists, include people in slots.
-- Do NOT include content from the previous or next slide in this slide's body. The previous/next context is for flow continuity only.
+- Never exceed 5 bullet items in one bullet_list.
+- Each bullet item: max 55 characters. Truncate if the source text is longer.
+- Headline (title): max 45 characters.
+- If the slide role is "cover" and people info exists, place people in a text_box at the bottom right.
+- Do NOT include content from the previous or next slide in this slide's body.
+
+WRITING STYLE — strictly enforced:
+- Text must be readable and natural — not over-compressed. Write complete, informative phrases.
+- NEVER end any text with formal polite endings: ~입니다, ~합니다, ~됩니다, ~있습니다, ~했습니다.
+- Instead, use plain-form endings or noun-terminated phrases:
+    OK: "피부 타입에 따라 관리 방법이 달라진다"
+    OK: "수분 유지와 장벽 보호가 핵심"
+    OK: "세 가지 원인으로 나눌 수 있다"
+    NOT OK: "수분을 유지해야 합니다"
+    NOT OK: "관리 방법이 달라집니다"
+- Headlines: 10–40 chars, specific and descriptive, not a generic label.
+- Bullets: 20–55 chars each, informative enough to stand alone without context.
+- Body text: 1 sentence, plain-form or noun-terminated, max 90 chars.
+- Do NOT use "표지", "마무리", "목차" as eyebrow or headline text.
+
+BULLET CHARACTER — vary the bullet_char to match the slide tone:
+- "•" for neutral informative content (default)
+- "▸" for step-by-step or sequential points
+- "◆" for key findings or conclusions
+- "–" for comparisons or contrasts
+- "›" for sub-points or supporting details
+Use one character consistently within a single bullet_list.
+
+IMAGE PLACEHOLDER — add an image_placeholder element when the content would benefit from a visual:
+- Use it for diagrams, process flows, comparison charts, photographs, or data visualizations.
+- Place it where the image would naturally appear in the layout (e.g. right half of a two-panel slide).
+- Set description to a concise instruction for the user (e.g. "조직도 이미지", "데이터 비교 그래프").
+- Do not add a placeholder just to fill space — only use it when a visual genuinely aids understanding.
+- image_placeholder counts toward the layout but does not contain text content.
+
 - Write in {language}.
 
 Source document:
@@ -368,7 +482,7 @@ Response schema:
 Slots prompt contract:
 {slots_schema_json}
 
-Elements prompt contract:
+Elements prompt contract (includes variant_coordinate_templates and layout_grid):
 {elements_schema_json}
 
 Presentation goal: {presentation_goal}
@@ -385,14 +499,36 @@ Current slide:
 {current_slide_json}
 
 Rules:
-- Preserve the slide contract.
-- Apply the user request without breaking the flow.
-- Prefer elements as the primary representation.
-- If you include slots, follow the slots prompt contract exactly.
-- If you include elements, follow the elements prompt contract exactly.
+- Preserve the slide contract. Apply the user request without breaking the flow.
+- ALWAYS use elements as the primary representation.
+- Re-apply the variant_coordinate_templates for the chosen slide_variant as your coordinate baseline.
+
+LAYOUT DISCIPLINE — every generated page must satisfy ALL of the following:
+1. Slide title text_box: y in [0.45, 0.95], h=0.55, x=0.75, font_size >= 22, font_bold=true.
+2. No body element may have y < 1.1.
+3. All elements must be within safe_zone: x >= 0.75, x+w <= 12.58, y >= 0.45, y+h <= 7.1.
+4. Text fit: h >= font_size * line_count * 0.028 + 0.15.
+5. Bullet list fit: h >= items.length * 0.50.
+6. Shapes acting as panel backgrounds must appear BEFORE text/bullet elements on top of them.
+7. Left-edge elements share x=0.75 or x=1.05.
+8. Two-column layouts: left x=0.75 w=5.77, right x=6.82 w=5.76, gap=0.30.
+
+CONTENT RULES:
 - Do not exceed 5 bullets.
+- Each bullet item: max 55 characters.
+- Headline (title): max 45 characters.
 - Use only source-backed content.
-- Do NOT include content from the previous or next slide in this slide's body. The previous/next context is for flow continuity only.
+- Do NOT include content from the previous or next slide in this slide's body.
+
+WRITING STYLE — strictly enforced:
+- Write complete, readable phrases. NEVER use ~입니다, ~합니다, ~됩니다, ~있습니다.
+- Use plain-form endings (e.g. ~다, ~된다) or noun-terminated phrases.
+- Do NOT use "표지", "마무리", "목차" as eyebrow or headline.
+
+BULLET CHARACTER — vary bullet_char to match tone: "•" neutral, "▸" sequential, "◆" key findings, "–" contrast, "›" sub-points.
+
+IMAGE PLACEHOLDER — add image_placeholder when a visual (diagram, photo, chart) would genuinely aid understanding. Set description to a concise user instruction.
+
 - Write in {language}.
 
 Source document:
@@ -441,27 +577,30 @@ class MockLLMClient(LLMClient):
             outline_schema_json=_OUTLINE_PROMPT_SCHEMA,
         )
         sections = [
-            ("서론", "problem_intro", "피부 관리의 중요성을 강조한다."),
-            ("피부 타입 분석", "detail", "피부 타입의 분류와 특징을 설명한다."),
-            ("나의 피부 타입", "detail", "자신의 피부 타입을 분석한다."),
-            ("피부 타입에 따른 원인 분석", "analysis", "피부 타입에 영향을 미치는 요인을 분석한다."),
-            ("피부 관리 방법 설계", "solution", "효과적인 피부 관리 방법을 제시한다."),
-            ("결론", "summary", "피부 관리의 핵심 포인트를 정리한다."),
+            ("발표 시작", "cover", "hook", "title_page"),
+            ("서론", "problem_intro", "informative", "content_box_list"),
+            ("피부 타입 분석", "detail", "informative", "content_box_list"),
+            ("나의 피부 타입", "detail", "informative", "content_sidebar"),
+            ("피부 타입에 따른 원인 분석", "analysis", "analytical", "content_split_band"),
+            ("피부 관리 방법 설계", "solution", "informative", "content_compact"),
+            ("결론", "summary", "persuasive", "content_two_panel"),
+            ("마무리", "closing", "closing", "closing_page"),
         ]
         result: dict[str, Any] = {}
-        for index, (slide_title, role, goal) in enumerate(sections, start=1):
+        for index, (slide_title, role, tone, variant) in enumerate(sections, start=1):
             result[slide_title] = {
                 "id": f"slide_{index:02d}",
                 "role": role,
-                "goal": goal,
-                "key_points": [goal.replace("한다.", ""), "핵심 내용 정리"],
-                "tone": "informative" if role != "summary" else "closing",
-                "description": f"{slide_title}에 맞는 핵심 내용을 일반 청중이 이해하기 쉽게 정리한다.",
+                "goal": f"{slide_title} 핵심 내용 전달",
+                "key_points": ["핵심 포인트 1", "핵심 포인트 2"],
+                "tone": tone,
+                "description": f"{slide_title} 슬라이드",
                 "page_size": 1,
-                "preferred_variant": _pick_slide_variant({"role": role, "key_points": [goal]}),
+                "preferred_variant": variant,
             }
         response = {
             "title": str(title).strip() or "Presentation",
+            "theme": "clean_light",
             "outline": result,
         }
         label = _normalize_request_label(request_label, "outline")
@@ -501,7 +640,6 @@ class MockLLMClient(LLMClient):
         theme = _pick_theme(slide_info)
         page_background = "#FFFDF8" if theme == "editorial" else "#0F172A" if theme == "bold_dark" else "#F8FAFC"
         slots: dict[str, Any] = {
-            "eyebrow": str(slide_info.get("role", "")).replace("_", " ").title(),
             "headline": display_title,
             "body": str(slide_info.get("description", "")),
             "highlight": str(slide_info.get("goal", "")),

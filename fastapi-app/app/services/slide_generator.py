@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import re
 
 from ..models.project_state import ProjectState
 from ..schemas.generate import PageLayout, SlideContent
 from .json_validation import validate_outline_payload, validate_slides_payload
 from .llm_client import LLMClient
+
+_MAX_CONCURRENT_SLIDES = 5
 
 
 def _summarize_slide_for_context(slide: SlideContent | None) -> str:
@@ -27,36 +30,43 @@ def _summarize_slide_for_context(slide: SlideContent | None) -> str:
 
 
 def _pick_theme(role: str, tone: str) -> str:
-    if tone in {"closing", "persuasive"} or role == "summary":
+    if tone in {"closing", "persuasive"} or role in {"summary", "closing"}:
         return "bold_dark"
     if role == "analysis":
         return "editorial"
     return "clean_light"
 
 
+_ALL_VARIANTS = {
+    "title_page", "content_box_list", "content_two_panel", "content_sidebar",
+    "content_split_band", "content_compact", "content_card_grid", "content_steps",
+    "content_highlight_split", "closing_page",
+}
+
+
 def _pick_variant(slide_info: dict[str, object]) -> str:
     preferred_variant = str(slide_info.get("preferred_variant") or "").strip()
-    if preferred_variant in {
-        "title_page",
-        "content_box_list",
-        "content_two_panel",
-        "content_sidebar",
-        "content_split_band",
-        "content_compact",
-        "closing_page",
-    }:
+    if preferred_variant in _ALL_VARIANTS:
         return preferred_variant
 
     role = str(slide_info.get("role", "")).strip().lower()
     key_points = [str(item) for item in slide_info.get("key_points", []) if isinstance(item, str)]
-    if role == "problem_intro":
+    n = len(key_points)
+
+    if role in {"cover", "problem_intro"}:
         return "title_page"
+    if role == "closing":
+        return "closing_page"
     if role == "analysis":
         return "content_split_band"
-    if role in {"summary", "solution"}:
+    if role == "solution":
+        return "content_steps"
+    if role == "summary":
         return "content_compact"
-    if role == "comparison" or len(key_points) >= 4:
+    if role == "comparison":
         return "content_two_panel"
+    if 2 <= n <= 5:
+        return "content_card_grid"
     return "content_box_list"
 
 
@@ -91,138 +101,12 @@ def _extract_people_info(text: str) -> list[str]:
     return deduped[:4]
 
 
-def _build_title_slide(title: str, people: list[str]) -> dict[str, object]:
-    return SlideContent(
-        title=title,
-        theme="clean_light",
-        slide_variant="title_page",
-        pages=[
-            PageLayout(
-                background="#F7F8FC",
-                elements=[
-                    {
-                        "type": "shape",
-                        "x": 0.7,
-                        "y": 0.7,
-                        "w": 0.18,
-                        "h": 5.9,
-                        "fill_color": "#2563EB",
-                    },
-                    {
-                        "type": "text_box",
-                        "text": "Presentation",
-                        "x": 1.1,
-                        "y": 1.0,
-                        "w": 3.4,
-                        "h": 0.35,
-                        "font_size": 13,
-                        "font_bold": True,
-                        "font_color": "#2563EB",
-                        "align": "left",
-                    },
-                    {
-                        "type": "text_box",
-                        "text": title,
-                        "x": 1.1,
-                        "y": 1.55,
-                        "w": 8.8,
-                        "h": 1.45,
-                        "font_size": 33,
-                        "font_bold": True,
-                        "font_color": "#0F172A",
-                        "align": "left",
-                    },
-                    {
-                        "type": "text_box",
-                        "text": "\n".join(people),
-                        "x": 9.2,
-                        "y": 5.8,
-                        "w": 3.0,
-                        "h": 0.65,
-                        "font_size": 10,
-                        "font_color": "#475569",
-                        "align": "right",
-                    },
-                ],
-            )
-        ],
-    ).model_dump()
-
-
-def _build_closing_slide(title: str, theme: str, people: list[str]) -> dict[str, object]:
-    palette = {
-        "clean_light": {"bg": "#F7F8FC", "panel": "#FFFFFF", "accent": "#2563EB", "text": "#0F172A", "muted": "#475569"},
-        "bold_dark": {"bg": "#0F172A", "panel": "#162235", "accent": "#7AA2FF", "text": "#F8FAFC", "muted": "#CBD5E1"},
-        "editorial": {"bg": "#FFFDF8", "panel": "#F7F1E8", "accent": "#B45309", "text": "#292524", "muted": "#57534E"},
-    }.get(theme, {"bg": "#F7F8FC", "panel": "#FFFFFF", "accent": "#2563EB", "text": "#0F172A", "muted": "#475569"})
-    return SlideContent(
-        title=title,
-        theme=theme,
-        slide_variant="closing_page",
-        pages=[
-            PageLayout(
-                background=str(palette["bg"]),
-                elements=[
-                    {
-                        "type": "shape",
-                        "x": 0.9,
-                        "y": 1.0,
-                        "w": 11.5,
-                        "h": 5.2,
-                        "fill_color": str(palette["panel"]),
-                    },
-                    {
-                        "type": "shape",
-                        "x": 0.9,
-                        "y": 1.0,
-                        "w": 11.5,
-                        "h": 0.2,
-                        "fill_color": str(palette["accent"]),
-                    },
-                    {
-                        "type": "text_box",
-                        "text": title,
-                        "x": 1.35,
-                        "y": 2.0,
-                        "w": 10.4,
-                        "h": 0.9,
-                        "font_size": 38,
-                        "font_bold": True,
-                        "font_color": str(palette["text"]),
-                        "align": "center",
-                    },
-                    {
-                        "type": "text_box",
-                        "text": "발표를 들어주셔서 감사합니다.",
-                        "x": 2.0,
-                        "y": 3.15,
-                        "w": 9.1,
-                        "h": 0.5,
-                        "font_size": 16,
-                        "font_color": str(palette["muted"]),
-                        "align": "center",
-                    },
-                    {
-                        "type": "text_box",
-                        "text": "\n".join(people),
-                        "x": 2.2,
-                        "y": 4.2,
-                        "w": 8.8,
-                        "h": 1.2,
-                        "font_size": 15,
-                        "font_color": str(palette["muted"]),
-                        "align": "center",
-                    },
-                ],
-            )
-        ],
-    ).model_dump()
-
-
-def _normalize_slide(raw_slide: dict[str, object], slide_info: dict[str, object]) -> dict[str, object]:
-    role = str(slide_info.get("role", "")).strip().lower()
-    tone = str(slide_info.get("tone", "")).strip().lower()
-    raw_slide.setdefault("theme", _pick_theme(role, tone))
+def _normalize_slide(
+    raw_slide: dict[str, object],
+    slide_info: dict[str, object],
+    presentation_theme: str,
+) -> dict[str, object]:
+    raw_slide["theme"] = presentation_theme
     raw_slide.setdefault("slide_variant", _pick_variant(slide_info))
     return raw_slide
 
@@ -250,33 +134,45 @@ class SlideGenerator:
         if not outline_ok:
             raise ValueError(f"{outline_error} JSON이 잘못되었습니다.")
 
+        raw_theme = str(state.metadata.get("presentation_theme", "clean_light"))
+        presentation_theme = raw_theme if raw_theme in {"clean_light", "bold_dark", "editorial"} else "clean_light"
+
         titles = list(state.outline.keys())
-        raw_slides: list[dict[str, object]] = [_build_title_slide(state.title, people)]
+        semaphore = asyncio.Semaphore(_MAX_CONCURRENT_SLIDES)
 
-        for index, title in enumerate(titles):
+        async def _generate_one(index: int, title: str) -> dict[str, object]:
             item = state.outline[title]
-            previous_slide = SlideContent.model_validate(raw_slides[-1]) if raw_slides else None
-            previous_slide_summary = _summarize_slide_for_context(previous_slide)
-            next_slide_summary = state.outline[titles[index + 1]].description if index < len(titles) - 1 else ""
-
+            prev_title = titles[index - 1] if index > 0 else None
+            previous_slide_summary = (
+                f"{prev_title}: {state.outline[prev_title].description}"
+                if prev_title else ""
+            )
+            next_slide_summary = (
+                state.outline[titles[index + 1]].description
+                if index < len(titles) - 1 else ""
+            )
             slide_info = item.model_dump()
             slide_info["title"] = title
             slide_info["people"] = people
 
-            raw_slide = await self._llm_client.generate_slide(
-                presentation_goal=presentation_goal,
-                target_audience=target_audience,
-                slide_info=slide_info,
-                content=state.content,
-                language=state.language,
-                previous_slide_summary=previous_slide_summary,
-                next_slide_summary=next_slide_summary,
-                request_label=f"slide {index + 1} project {state.project_id}: {title}",
-            )
-            raw_slides.append(_normalize_slide(raw_slide, slide_info))
+            async with semaphore:
+                raw_slide = await self._llm_client.generate_slide(
+                    presentation_goal=presentation_goal,
+                    target_audience=target_audience,
+                    slide_info=slide_info,
+                    content=state.content,
+                    language=state.language,
+                    previous_slide_summary=previous_slide_summary,
+                    next_slide_summary=next_slide_summary,
+                    request_label=f"slide {index + 1} project {state.project_id}: {title}",
+                )
+            return _normalize_slide(raw_slide, slide_info, presentation_theme)
 
-        closing_theme = str(raw_slides[-1].get("theme", "clean_light")) if raw_slides else "clean_light"
-        raw_slides.append(_build_closing_slide("감사합니다", closing_theme, people))
+        raw_slides: list[dict[str, object]] = list(
+            await asyncio.gather(
+                *[_generate_one(i, title) for i, title in enumerate(titles)]
+            )
+        )
 
         state.metadata["slides_raw"] = raw_slides
         slides_ok, slides_error = validate_slides_payload(raw_slides)

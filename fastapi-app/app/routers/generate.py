@@ -30,6 +30,7 @@ async def generate_outline(req: GenerateOutlineRequest, request: Request) -> Gen
     state.title = outline_result.title
     state.outline = outline_result.outline
     state.metadata["presentation_goal"] = f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다."
+    state.metadata["presentation_theme"] = outline_result.theme
     state.touch()
     await repo.upsert(state)
     return GenerateOutlineResponse(
@@ -101,6 +102,7 @@ async def generate_all(req: GenerateAllRequest, request: Request) -> GenerateAll
     state.title = outline_result.title
     state.outline = outline_result.outline
     state.metadata["presentation_goal"] = f"문서 '{state.title}'의 핵심 내용을 청중이 이해하기 쉽게 발표 자료로 구성한다."
+    state.metadata["presentation_theme"] = outline_result.theme
 
     try:
         slides = await slide_generator.generate_slides(state)
